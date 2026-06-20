@@ -152,6 +152,33 @@ Nexus uses **6 specialized agent types** that are autonomously routed based on t
 
 ---
 
+## 🛠️ Hardened Security & Technical Specs
+
+Nexus AI OS has been audited and updated to enforce premium enterprise security, strict input validations, and advanced visual formatting:
+
+### 1. Zero-Leak Console Sanitization
+To prevent any data exposure to developers, server operators, or users inspecting logs:
+- **Server-Side API Guard**: Next.js route handlers ([route.ts](file:///c:/Users/hp/nexus-ai/src/app/api/agent/route.ts)) remove all raw standard error outputs (`stderrData`), raw execution dumps (`stdoutData`), and exception details from console errors.
+- **Client-Side DevTools Protection**: All client-side pages and components (including `Navbar.tsx`, `SideRays.tsx`, `graph/page.tsx`, `dashboard/page.tsx`, and `chat/page.tsx`) suppress stack traces and log details, printing only generic errors.
+- **Crypto & Key Protection**: Encryption failures ([crypto.ts](file:///c:/Users/hp/nexus-ai/src/utils/crypto.ts)) log a static message without printing error arguments, preventing key extraction from memory dumps.
+
+### 2. Live GitHub Repository Verification
+During the workspace onboarding wizard:
+- When a user inputs a repository name or URL, the platform validates format constraints.
+- The browser client executes a verification ping to `https://api.github.com/repos/{owner}/{repo}` to confirm existence and accessibility before proceeding. Invalid or private repositories present warning details to correct input names.
+
+### 3. Compliant Binary PDF Report Engine
+Instead of writing plain text to a `.pdf` file format:
+- A custom binary layout compiler (`SimplePDFWriter`) has been written natively in Python without external dependencies inside [agent_engine.py](file:///c:/Users/hp/nexus-ai/src/agents/agent_engine.py).
+- It writes compliant PDF byte arrays (handling catalogs, page pointers, Helvetica-Bold and Helvetica font sizes, stream lengths, cross-reference tables, and file trailers).
+- Generates viewable, wrap-aligned PDFs, DOCX files, and Markdown pages stored under `public/reports/` (fully ignored by git to keep commits clean).
+
+### 4. Premium Scan Upload Animations
+- Supporting **PDF, DOCX, TXT, and Markdown** uploads in the Document Center and Onboarding dropzone.
+- Featuring an orbital check loader, pulsing check indicators, a horizontal scanning laser line, and dynamic labels that read the exact extension to display format-specific parsing status (e.g., *“Reading DOCX stream...”*, *“Reading Markdown stream...”*).
+
+---
+
 ## 🚀 Getting Started
 
 ### Prerequisites
