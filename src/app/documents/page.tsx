@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { encryptData, decryptData } from "@/utils/crypto";
 import {
   FileText,
   UploadCloud,
@@ -75,15 +76,29 @@ export default function Documents() {
   const [dragActive, setDragActive] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [currentPlan, setCurrentPlan] = useState("free");
+  const [userRole, setUserRole] = useState("Viewer");
+  const [userWorkspace, setUserWorkspace] = useState("NEXUS-HQ");
+  const [permissionError, setPermissionError] = useState("");
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   useEffect(() => {
     // Check local auth and onboarding status
-    const auth = localStorage.getItem("nexus_auth");
-    if (!auth) {
+    const encryptedAuth = localStorage.getItem("nexus_auth");
+    if (!encryptedAuth) {
       router.push("/login");
       return;
     }
+    
+    let activeWorkspace = "NEXUS-HQ";
+    try {
+      const decrypted = decryptData(encryptedAuth);
+      const parsed = JSON.parse(decrypted);
+      if (parsed.role) setUserRole(parsed.role);
+      if (parsed.workspace) {
+        activeWorkspace = parsed.workspace;
+        setUserWorkspace(parsed.workspace);
+      }
+    } catch(e) {}
 
     const onboarded = localStorage.getItem("nexus_onboarded");
     if (onboarded !== "true") {
@@ -97,23 +112,41 @@ export default function Documents() {
     }
 
     // Load from localStorage or set defaults
-    const cachedDocs = localStorage.getItem("nexus_docs");
-    if (cachedDocs) {
+    const cachedDocsEncrypted = localStorage.getItem("nexus_docs");
+    let allDocs = [];
+    if (cachedDocsEncrypted) {
       try {
-        const parsed = JSON.parse(cachedDocs);
-        setTimeout(() => setDocs(parsed), 0);
+        const decrypted = decryptData(cachedDocsEncrypted);
+        if (decrypted) allDocs = JSON.parse(decrypted);
       } catch (e) {
-        setTimeout(() => setDocs(DEFAULT_DOCUMENTS), 0);
+        allDocs = [];
       }
-    } else {
-      localStorage.setItem("nexus_docs", JSON.stringify(DEFAULT_DOCUMENTS));
-      setTimeout(() => setDocs(DEFAULT_DOCUMENTS), 0);
     }
+
+    // Filter defaults if no docs at all in cache
+    if (allDocs.length === 0) {
+      const defaultDocs = DEFAULT_DOCUMENTS.map(doc => ({ ...doc, workspace: activeWorkspace }));
+      allDocs = [...defaultDocs];
+      localStorage.setItem("nexus_docs", encryptData(JSON.stringify(allDocs)));
+    }
+
+    const workspaceDocs = allDocs.filter((d: any) => d.workspace === activeWorkspace);
+    setTimeout(() => setDocs(workspaceDocs), 0);
   }, [router]);
 
-  const saveDocs = (newDocs: Document[]) => {
-    setDocs(newDocs);
-    localStorage.setItem("nexus_docs", JSON.stringify(newDocs));
+  const saveDocs = (newWorkspaceDocs: Document[]) => {
+    setDocs(newWorkspaceDocs);
+    const cachedDocsEncrypted = localStorage.getItem("nexus_docs");
+    let allDocs = [];
+    if (cachedDocsEncrypted) {
+      try {
+        const decrypted = decryptData(cachedDocsEncrypted);
+        if (decrypted) allDocs = JSON.parse(decrypted);
+      } catch (e) {}
+    }
+    const otherWorkspacesDocs = allDocs.filter((d: any) => d.workspace !== userWorkspace);
+    const combined = [...otherWorkspacesDocs, ...newWorkspaceDocs];
+    localStorage.setItem("nexus_docs", encryptData(JSON.stringify(combined)));
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -145,6 +178,25 @@ export default function Documents() {
   };
 
   const triggerSimulatedUpload = (filename: string) => {
+    // File security validation
+    const lastDotIndex = filename.lastIndexOf('.');
+    const ext = lastDotIndex !== -1 ? filename.substring(lastDotIndex).toLowerCase() : "";
+    const allowedExts = ['.pdf', '.docx', '.txt', '.md'];
+    const blockedExts = ['.exe', '.bat', '.cmd', '.sh', '.msi', '.js', '.ts', '.py', '.php', '.jar', '.vbs', '.com'];
+
+    if (blockedExts.includes(ext) || !allowedExts.includes(ext)) {
+      setPermissionError("File Blocked: Executable/Script elements detected. Only PDF, DOCX, TXT, and Markdown files are permitted.");
+      setTimeout(() => setPermissionError(""), 5000);
+      return;
+    }
+
+    // RBAC check
+    if (userRole === "Viewer") {
+      setPermissionError("Permission Denied: Viewers cannot upload workspace documents.");
+      setTimeout(() => setPermissionError(""), 4000);
+      return;
+    }
+
     // Plan restrictions
     const docLimit = currentPlan === "free" ? 5 : currentPlan === "starter" ? 10 : 10000; // Simulated lower limits for demo
     if (docs.length >= docLimit && currentPlan !== "pro" && currentPlan !== "business") {
@@ -155,7 +207,8 @@ export default function Documents() {
     if (isUploading) return;
     setIsUploading(true);
     setUploadProgress(0);
-    setCurrentStep("Reading file binary stream...");
+    const extName = ext.substring(1).toUpperCase();
+    setCurrentStep(`Reading ${extName} file stream...`);
 
     const steps = [
       { p: 25, label: "Extracting text contents..." },
@@ -185,14 +238,15 @@ export default function Documents() {
             entities = ["AWS Infrastructure", "DevOps Team", "ECS Canary"];
           }
 
-          const newDoc: Document = {
+          const newDoc: any = {
             id: `doc-${Date.now()}`,
             name: filename,
             source: "Local Upload",
             uploadDate: new Date().toISOString().split("T")[0],
             status: "Active",
             chunks: Math.floor(Math.random() * 40) + 8,
-            entities
+            entities,
+            workspace: userWorkspace
           };
 
           const updatedDocs = [newDoc, ...docs];
@@ -206,6 +260,12 @@ export default function Documents() {
   };
 
   const handleDelete = (id: string) => {
+    // RBAC check
+    if (userRole === "Viewer") {
+      setPermissionError("Permission Denied: Viewers cannot delete workspace documents.");
+      setTimeout(() => setPermissionError(""), 4000);
+      return;
+    }
     const updated = docs.filter(doc => doc.id !== id);
     saveDocs(updated);
   };
@@ -218,6 +278,13 @@ export default function Documents() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 space-y-10 bg-transparent">
+      {permissionError && (
+        <div className="bg-red-50 border border-red-100 p-4 rounded-xl text-[11px] font-bold text-red-500 flex items-center gap-2 animate-pulse">
+          <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+          {permissionError}
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="border-b border-slate-100 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -296,21 +363,38 @@ export default function Documents() {
             onDragLeave={handleDrag}
             onDrop={handleDrop}
             className={`premium-card border-2 border-dashed flex flex-col items-center justify-center p-8 text-center transition-all ${
-              dragActive ? "border-black bg-slate-50" : "border-slate-200"
+              userRole === "Viewer" ? "border-slate-100 bg-slate-50/20" : dragActive ? "border-black bg-slate-50" : "border-slate-200"
             }`}
           >
-            {isUploading ? (
-              <div className="space-y-4 w-full">
-                <Loader2 className="h-10 w-10 text-black animate-spin mx-auto" />
-                <div className="space-y-2">
-                  <p className="text-sm font-bold text-slate-800">{currentStep}</p>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+            {userRole === "Viewer" ? (
+              <div className="space-y-4 py-4">
+                <AlertCircle className="h-10 w-10 text-orange-400 mx-auto" />
+                <h4 className="text-sm font-bold text-slate-700">Viewer Mode Active</h4>
+                <p className="text-xs text-slate-400 mt-1 max-w-[200px] mx-auto font-semibold leading-relaxed">
+                  Your role does not have permission to upload or synchronize company materials.
+                </p>
+              </div>
+            ) : isUploading ? (
+              <div className="space-y-4 w-full relative overflow-hidden py-2">
+                <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-black to-transparent animate-[pulse_1s_infinite] top-1/2" />
+                <div className="flex justify-center">
+                  <div className="relative flex items-center justify-center h-12 w-12 rounded-xl bg-slate-50 border border-slate-100">
+                    <FileText className="h-6 w-6 text-black animate-pulse" />
+                    <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-black opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-black"></span>
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-2 max-w-[280px] mx-auto">
+                  <p className="text-[11px] font-bold text-slate-800">{currentStep}</p>
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                     <div
-                      className="bg-black h-2 transition-all duration-300"
+                      className="bg-black h-1.5 transition-all duration-300"
                       style={{ width: `${uploadProgress}%` }}
                     ></div>
                   </div>
-                  <p className="text-[10px] text-slate-400">Progress: {uploadProgress}%</p>
+                  <p className="text-[9px] text-slate-400 font-bold font-mono">Progress: {uploadProgress}%</p>
                 </div>
               </div>
             ) : (
@@ -437,8 +521,12 @@ export default function Documents() {
                         <td className="px-6 py-4 text-right">
                           <button
                             onClick={() => handleDelete(doc.id)}
-                            className="text-slate-400 hover:text-red-600 p-1.5 rounded transition-colors"
-                            title="Delete index document"
+                            className={`p-1.5 rounded transition-colors ${
+                              userRole === "Viewer" 
+                                ? "text-slate-200 cursor-not-allowed" 
+                                : "text-slate-400 hover:text-red-600 cursor-pointer"
+                            }`}
+                            title={userRole === "Viewer" ? "Viewer cannot delete" : "Delete index document"}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>

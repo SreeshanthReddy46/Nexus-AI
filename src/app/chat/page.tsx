@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { decryptData } from "@/utils/crypto";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import {
   MessageSquare,
@@ -77,6 +78,11 @@ interface Message {
     status: "success" | "warning";
     details: string;
   }[];
+  downloads?: {
+    pdf: string;
+    docx: string;
+    md: string;
+  };
 }
 
 interface Chat {
@@ -211,6 +217,7 @@ const PRE_DEFINED_ANSWERS: { [key: string]: Omit<Message, "id" | "sender"> } = {
 export default function ChatWorkspace() {
   const router = useRouter();
   const [userName, setUserName] = useState("Sreeshanth");
+  const [userRole, setUserRole] = useState("Viewer");
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState("");
   const [inputValue, setInputValue] = useState("");
@@ -222,37 +229,89 @@ export default function ChatWorkspace() {
   const [currentPlan, setCurrentPlan] = useState<string>("free");
   const [securityStatus, setSecurityStatus] = useState("Verifying Integrity...");
 
-  const getReasoningSteps = () => {
+  const getReasoningSteps = (routedAgent: string, plan: string) => {
+    if (routedAgent === "Knowledge Agent") {
+      return [
+        "Knowledge Agent: Initializing document retrieval...",
+        "Knowledge Agent: Retrieving semantic chunks from index...",
+        "Knowledge Agent: Verifying factual consistency of retrieved segments...",
+        "Knowledge Agent: Formulating verified response..."
+      ];
+    }
+    
+    if (routedAgent === "Code Intelligence Agent") {
+      return [
+        "Code Intelligence Agent: Scanning repository directory structures...",
+        "Code Intelligence Agent: Parsing package manifests and configuration trees...",
+        "Code Intelligence Agent: Auditing codebase dependencies and safety controls...",
+        "Code Intelligence Agent: Compiling structural analysis reports..."
+      ];
+    }
+
+    if (routedAgent === "Memory Agent") {
+      return [
+        "Memory Agent: Querying session index and historical timeline...",
+        "Memory Agent: Aggregating previous searches and activity maps...",
+        "Memory Agent: Restoring system state and context parameters..."
+      ];
+    }
+    
+    if (routedAgent === "Report Generator") {
+      return [
+        "Report Generator: Querying database index stats...",
+        "Report Generator: Compiling compliance and metric records...",
+        "Report Generator: Running adversarial audit checks...",
+        "Report Generator: Rendering system status dashboard report..."
+      ];
+    }
+
+    if (routedAgent === "Report Agent") {
+      return [
+        "Report Agent: Compiling workspace metrics and files...",
+        "Report Agent: Drafting outlines and formatting report sections...",
+        "Report Agent: Writing document files to storage...",
+        "Report Agent: Finalizing exports for PDF, DOCX, and Markdown..."
+      ];
+    }
+
+    if (routedAgent === "Graph Intelligence Agent") {
+      return [
+        "Graph Intelligence Agent: Initiating graph search database traverse...",
+        "Graph Intelligence Agent: Analyzing relationship nodes and pathways...",
+        "Graph Intelligence Agent: Compiling visualization models...",
+        "Graph Intelligence Agent: Rendering interactive entity flowchart..."
+      ];
+    }
+
+    // Default Research Agent steps
     const baseSteps = [
-      "Initializing neural retrieval pipeline...",
-      "Executing vector similarity search (k=5)...",
-      "Validating response for factual consistency..."
+      "Research Agent: Initializing neural retrieval pipeline...",
+      "Research Agent: Executing vector similarity search (k=5)...",
+      "Research Agent: Validating response for factual consistency..."
     ];
 
-    if (currentPlan === "free") return baseSteps;
+    if (plan === "free") return baseSteps;
 
-    if (currentPlan === "starter") {
+    if (plan === "starter") {
       return [
         ...baseSteps.slice(0, 2),
-        "Traversing relationship nodes in Knowledge Graph...",
-        "Applying standard reasoning chain...",
+        "Research Agent: Traversing relationship nodes in Knowledge Graph...",
+        "Research Agent: Applying standard reasoning chain...",
         baseSteps[2]
       ];
     }
 
     // Pro & Business
     return [
-      "Initializing high-depth neural pipeline...",
-      "Executing recursive vector similarity search (k=15)...",
-      "Traversing multi-hop relationship nodes in Knowledge Graph...",
-      "Re-ranking context based on structural centrality...",
-      "Applying advanced multi-agent reasoning chain...",
-      "Adversarial validation for hallucination detection...",
-      "Finalizing high-confidence synthesis..."
+      "Research Agent: Initializing high-depth neural pipeline...",
+      "Research Agent: Executing recursive vector similarity search (k=15)...",
+      "Research Agent: Traversing multi-hop relationship nodes in Knowledge Graph...",
+      "Research Agent: Re-ranking context based on structural centrality...",
+      "Research Agent: Applying advanced multi-agent reasoning chain...",
+      "Research Agent: Adversarial validation for hallucination detection...",
+      "Research Agent: Finalizing high-confidence synthesis..."
     ];
   };
-
-  const reasoningSteps = getReasoningSteps();
 
   const [agentMode, setAgentMode] = useState("Auto");
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
@@ -280,21 +339,25 @@ export default function ChatWorkspace() {
 
   useEffect(() => {
     // Check local auth and onboarding status
-    const auth = localStorage.getItem("nexus_auth");
+    const encryptedAuth = localStorage.getItem("nexus_auth");
     const onboarded = localStorage.getItem("nexus_onboarded");
     const plan = localStorage.getItem("nexus_plan");
     const cachedChats = localStorage.getItem("nexus_chats");
 
     setTimeout(() => {
-      if (!auth) {
+      if (!encryptedAuth) {
         router.push("/login");
         return;
       }
 
       try {
-        const parsed = JSON.parse(auth);
+        const decrypted = decryptData(encryptedAuth);
+        const parsed = JSON.parse(decrypted);
         if (parsed.name) {
           setUserName(parsed.name);
+        }
+        if (parsed.role) {
+          setUserRole(parsed.role);
         }
       } catch { }
 
@@ -370,28 +433,13 @@ export default function ChatWorkspace() {
   const handleSend = (text: string) => {
     if (!text.trim()) return;
 
-    // Plan-based restrictions
+    // Plan-based restrictions: only check overall limit on free plan
     if (currentPlan === "free") {
-      // Simulate query limit check
       const totalMessages = chats.reduce((acc, chat) => acc + chat.messages.length, 0);
-      if (totalMessages >= 10 && agentMode === "Auto") { // Lower limit for demo
+      if (totalMessages >= 10) {
           setUpgradeReason("You have reached your monthly query limit on the Free plan.");
           setIsUpgradeModalOpen(true);
           return;
-      }
-
-      if (agentMode !== "Auto") {
-        setUpgradeReason(`The "${agentMode}" requires a Starter or Pro plan.`);
-        setIsUpgradeModalOpen(true);
-        return;
-      }
-    }
-
-    if (currentPlan === "starter") {
-      if (agentMode === "Report Generation") {
-        setUpgradeReason("Advanced Report Generation requires a Pro plan.");
-        setIsUpgradeModalOpen(true);
-        return;
       }
     }
 
@@ -420,152 +468,178 @@ export default function ChatWorkspace() {
     });
     saveChats(updatedChats);
 
+    // Determine target agent based on query automatically to show dynamic reasoning steps in real-time
+    const lowerQuery = query.toLowerCase().replace(/[?.,]/g, "").trim();
+    const docQuestions = [
+      "summarize this document",
+      "what does this policy say",
+      "explain this architecture",
+      "what are the key findings"
+    ];
+    
+    const isDocQuery = docQuestions.includes(lowerQuery) || 
+                       lowerQuery.includes("summarize") || 
+                       lowerQuery.includes("policy") || 
+                       lowerQuery.includes("architecture") || 
+                       lowerQuery.includes("key findings") ||
+                       lowerQuery.includes("findings") ||
+                       lowerQuery.includes("document") ||
+                       lowerQuery.includes("main points") ||
+                       lowerQuery.includes("explain this section") ||
+                       lowerQuery.includes("what is project phoenix") ||
+                       lowerQuery.includes("what is phoenix");
+
+    const isReportQuery = lowerQuery.includes("weekly report") ||
+                          lowerQuery.includes("executive summary") ||
+                          lowerQuery.includes("status report") ||
+                          lowerQuery.includes("risk analysis") ||
+                          (lowerQuery.includes("report") && !lowerQuery.includes("generate a report") && !lowerQuery.includes("audit"));
+
+    const isGraphQuery = lowerQuery.includes("depend on project phoenix") ||
+                         lowerQuery.includes("use aws") ||
+                         lowerQuery.includes("payment gateway") ||
+                         lowerQuery.includes("projects are blocked") ||
+                         lowerQuery.includes("blocked") ||
+                         lowerQuery.includes("relationship") ||
+                         lowerQuery.includes("connected") ||
+                         lowerQuery.includes("who owns it") ||
+                         lowerQuery.includes("who owns project phoenix") ||
+                         lowerQuery.includes("what are its dependencies") ||
+                         lowerQuery.includes("which teams use this system") ||
+                         lowerQuery.includes("who is responsible") ||
+                         lowerQuery.includes("which projects are connected");
+
+    const isMemoryQuery = lowerQuery.includes("reports did i create last week") ||
+                          lowerQuery.includes("recent searches") ||
+                          lowerQuery.includes("previous analysis") ||
+                          lowerQuery.includes("memory") ||
+                          lowerQuery.includes("searches");
+
+    const isCodeQuery = lowerQuery.includes("explain this codebase") ||
+                        lowerQuery.includes("generate documentation") ||
+                        lowerQuery.includes("codebase") ||
+                        lowerQuery.includes("project structure") ||
+                        lowerQuery.includes("security risks") ||
+                        lowerQuery.includes("dependency") ||
+                        lowerQuery.includes("dependencies") ||
+                        lowerQuery.includes("repository");
+
+    let routedAgentName = "Research Agent";
+    if (isMemoryQuery) {
+      routedAgentName = "Memory Agent";
+    } else if (isCodeQuery) {
+      routedAgentName = "Code Intelligence Agent";
+    } else if (isGraphQuery) {
+      routedAgentName = "Graph Intelligence Agent";
+    } else if (isDocQuery) {
+      routedAgentName = "Knowledge Agent";
+    } else if (isReportQuery) {
+      routedAgentName = "Report Agent";
+    } else if (lowerQuery.includes("report") || lowerQuery.includes("audit") || lowerQuery.includes("analytics")) {
+      routedAgentName = "Report Generator";
+    }
+
     setIsTyping(true);
     setReasoningLogs([]);
     setActiveReasoningStep(0);
 
-    // Simulate real-time reasoning terminal
-    let stepIdx = 0;
-    const terminalInterval = setInterval(() => {
-      if (stepIdx < reasoningSteps.length) {
-        setReasoningLogs(prev => [...prev, reasoningSteps[stepIdx]]);
-        setActiveReasoningStep(stepIdx + 1);
-        stepIdx++;
-      } else {
-        clearInterval(terminalInterval);
+    const currentReasoningSteps = getReasoningSteps(routedAgentName, currentPlan);
 
-        // Final generation logic
-        setTimeout(() => {
-          const lowerQuery = query.toLowerCase().replace(/[?.,]/g, "").trim();
-          let matchedResponse = PRE_DEFINED_ANSWERS[lowerQuery];
+    // Fetch active documents from storage
+    const cachedDocsEncrypted = localStorage.getItem("nexus_docs");
+    let currentDocs: any[] = [];
+    let userWorkspace = "NEXUS-HQ";
+    let userEmail = "";
+    let userId = "";
 
-          // Detect URLs for specialized deep analysis
-          const urlRegex = /(https?:\/\/[^\s]+)/g;
-          const foundUrls = query.match(urlRegex);
-          const isGithub = foundUrls?.some(url => url.includes("github.com"));
-          const isPdf = foundUrls?.some(url => url.toLowerCase().endsWith(".pdf"));
+    // Read workspace and credentials from auth
+    const encryptedAuth = localStorage.getItem("nexus_auth");
+    if (encryptedAuth) {
+      try {
+        const decrypted = decryptData(encryptedAuth);
+        const parsed = JSON.parse(decrypted);
+        userWorkspace = parsed.workspace || "NEXUS-HQ";
+        userEmail = parsed.email || "";
+        userId = parsed.userId || "";
+      } catch (e) {}
+    }
 
-          if (foundUrls && (isGithub || isPdf)) {
-             const targetUrl = foundUrls[0];
-             const type = isGithub ? "GitHub Repository" : "External PDF Document";
-             
-             matchedResponse = {
-                text: `I have completed a deep-bit analysis of the ${type} at ${targetUrl}. My extraction agents have mapped the entire structural hierarchy, including hidden dependencies and metadata. \n\nBased on this "every-bit" scan, I can confirm the system architecture is robust. The codebase/document contains high-density entity relationships that have been fully indexed into your current session memory. You can now ask specific questions about its logic, internal schemas, or summarized sections.`,
-                confidence: "99.2%",
-                sources: [targetUrl],
-                relations: isGithub ? ["Source Code", "System Architecture", "Dependency Tree"] : ["Document Content", "Semantic Entities", "Logical Flow"],
-                trace: [
-                    { agent: "URL Resolver", status: "success", details: `Established secure handshake with ${targetUrl}. Bypass protocol active.` },
-                    { agent: "Deep Extraction Agent", status: "success", details: `Scanning every bit of data. Parsed ${isGithub ? 'code tree and commit history' : 'all 452 pages and embedded OCR text'}.` },
-                    { agent: "Vector Embedder", status: "success", details: "Generated 1,240 high-dimensional embeddings for local RAG retrieval." },
-                    { agent: "Graph Weaver", status: "success", details: "Linked extracted entities to your organizational Knowledge Graph." },
-                    { agent: "Final Synthesis", status: "success", details: "Verified factual consistency against extracted 'bit-level' metadata." }
-                ]
-             };
+    if (cachedDocsEncrypted) {
+      try {
+        const decrypted = decryptData(cachedDocsEncrypted);
+        if (decrypted) {
+          const parsed = JSON.parse(decrypted);
+          // DATA ISOLATION FILTERING
+          currentDocs = parsed.filter((d: any) => d.workspace === userWorkspace);
+        }
+      } catch (e) {}
+    }
+
+    // Call python-backed Next.js API Route immediately
+    fetch("/api/agent", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        query: query,
+        documents: currentDocs,
+        plan: currentPlan,
+        role: userRole,
+        email: userEmail,
+        userId: userId,
+        workspace: userWorkspace
+      })
+    })
+      .then(res => res.json())
+      .then(data => {
+        const nexusMsg: Message = {
+          id: generateId("msg-nexus"),
+          sender: "nexus",
+          text: data.text || "No response received.",
+          confidence: data.confidence || "0%",
+          sources: data.sources || [],
+          relations: data.relations || [],
+          trace: data.trace || [],
+          downloads: data.downloads
+        };
+
+        const finalMessages = [...updatedMessages, nexusMsg];
+        const finalChats = chats.map(c => {
+          if (c.id === activeChatId) {
+            return { ...c, messages: finalMessages };
           }
+          return c;
+        });
+        saveChats(finalChats);
+        setIsTyping(false);
+        setActiveReasoningStep(null);
+      })
+      .catch(err => {
+        console.error("Agent Engine API Call Failed.");
+        const nexusMsg: Message = {
+          id: generateId("msg-nexus"),
+          sender: "nexus",
+          text: "An error occurred while connecting to the workspace intelligence engine. Please check that Python is running and try again.",
+          confidence: "0%",
+          sources: [],
+          relations: [],
+          trace: [
+            { agent: "Gateway Connection", status: "warning", details: "Failed to establish API pipeline handshake." }
+          ]
+        };
 
-          // Dynamic lookup: Check custom files in localStorage if no URL match
-          if (!matchedResponse) {
-            const cachedDocs = localStorage.getItem("nexus_docs");
-            let foundCustom = false;
-            if (cachedDocs) {
-              try {
-                const docs = JSON.parse(cachedDocs);
-                const matchingDoc = docs.find((d: { name: string; entities: string[] }) =>
-                  d.name.toLowerCase().includes(lowerQuery) ||
-                  d.entities.some((e: string) => lowerQuery.includes(e.toLowerCase()))
-                );
-
-                if (matchingDoc) {
-                  foundCustom = true;
-
-                  // Base trace for all plans
-                  const baseTrace = [
-                    { agent: "Encoder Agent", status: "success" as const, details: "Converted query to 1536-dimensional embedding using text-embedding-3-small." },
-                    { agent: "Vector Retriever", status: "success" as const, details: `Executed HNSW approximate nearest neighbor search on ${matchingDoc.name}. Found 4 relevant chunks.` },
-                  ];
-
-                  // Add complexity based on plan
-                  const extendedTrace: { agent: string; status: "success" | "warning"; details: string; }[] = [...baseTrace];
-
-                  if (currentPlan === "free") {
-                    extendedTrace.push({ agent: "Basic Reasoning", status: "success" as const, details: "Standard GPT-4o-mini synthesis on top-k retrieved chunks." });
-                  } else if (currentPlan === "starter") {
-                    extendedTrace.push({ agent: "Graph Re-ranker", status: "success" as const, details: `Cross-referenced vector chunks with entity nodes: ${matchingDoc.entities.join(", ")}.` });
-                    extendedTrace.push({ agent: "ML Reasoning Engine", status: "success" as const, details: "Applied standard Chain-of-Thought (CoT) prompting for synthesis." });
-                  } else {
-                    // Pro & Business
-                    extendedTrace.push({ agent: "Graph Re-ranker", status: "success" as const, details: `Cross-referenced vector chunks with entity nodes. Boosted relevance based on graph centrality.` });
-                    extendedTrace.push({ agent: "Multi-hop Reasoner", status: "success" as const, details: "Traversed 2-degree relationship nodes to find secondary context links." });
-                    extendedTrace.push({ agent: "Critic Agent", status: "success" as const, details: "Performed adversarial validation to detect potential hallucinations." });
-                    extendedTrace.push({ agent: "ML Reasoning Engine", status: "success" as const, details: "Applied advanced recursive Chain-of-Thought with 32k context window." });
-                  }
-
-                  matchedResponse = {
-                    text: `I discovered reference to your query in your uploaded document: ${matchingDoc.name}. The document was parsed into ${matchingDoc.chunks} chunks and contains entity markers like: ${matchingDoc.entities.join(", ")}. Based on this file, your systems are active and indexing properly.`,
-                    confidence: currentPlan === "free" ? "82%" : currentPlan === "starter" ? "89%" : "97%",
-                    sources: [matchingDoc.name],
-                    relations: matchingDoc.entities,
-                    trace: extendedTrace
-                  };
-                }
-              } catch (e) {
-                console.error("Error matching custom doc", e);
-              }
-            }
-
-            if (!foundCustom) {
-              // General fallback response with plan-aware trace
-              const fallbackTrace: { agent: string; status: "success" | "warning"; details: string; }[] = [
-                { agent: "Semantic Parser", status: "success" as const, details: "Named Entity Recognition (NER) identified tokens: " + query }
-              ];
-
-              if (currentPlan !== "free") {
-                fallbackTrace.push({ agent: "Hybrid Searcher", status: "success" as const, details: "Attempted combined BM25 and Vector search. Max similarity score: 0.58." });
-              }
-
-              fallbackTrace.push({ agent: "Response Generator", status: "success" as const, details: "Generated exploratory response based on base index." });
-
-              matchedResponse = {
-                text: `I could not locate a specific document reference for "${query}" in your indexed records. However, I scanned 5,420 indexed files and found no active bottlenecks. Please try uploading documentation regarding this in the Document Center.`,
-                confidence: "74%",
-                sources: ["General Base Index"],
-                relations: ["Corporate Registry"],
-                trace: fallbackTrace
-              };
-            }
+        const finalMessages = [...updatedMessages, nexusMsg];
+        const finalChats = chats.map(c => {
+          if (c.id === activeChatId) {
+            return { ...c, messages: finalMessages };
           }
-
-          // Add plan-specific flavor to the response if it's high-tier
-          if (currentPlan === "pro" || currentPlan === "business") {
-            matchedResponse = {
-              ...matchedResponse,
-              trace: [
-                ...(matchedResponse?.trace || []),
-                { agent: "Pro Logic Optimizer", status: "success", details: "Enhanced reasoning depth active. Multi-hop graph traversal completed." }
-              ]
-            };
-          }
-
-          const nexusMsg: Message = {
-            id: generateId("msg-nexus"),
-            sender: "nexus",
-            ...matchedResponse
-          };
-
-          const finalMessages = [...updatedMessages, nexusMsg];
-          const finalChats = chats.map(c => {
-            if (c.id === activeChatId) {
-              return { ...c, messages: finalMessages };
-            }
-            return c;
-          });
-          saveChats(finalChats);
-          setIsTyping(false);
-          setActiveReasoningStep(null);
-        }, 200);
-      }
-    }, 400);
+          return c;
+        });
+        saveChats(finalChats);
+        setIsTyping(false);
+        setActiveReasoningStep(null);
+      });
   };
 
   const suggestions = [
@@ -576,7 +650,7 @@ export default function ChatWorkspace() {
   ];
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-transparent border-t border-slate-100 overflow-hidden">
+    <div className="flex h-[calc(100vh-6rem)] bg-transparent border-t border-slate-100 overflow-hidden">
       {/* Upgrade Modal */}
       {isUpgradeModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -827,6 +901,17 @@ export default function ChatWorkspace() {
                 {currentPlan} Intelligence
               </span>
             </div>
+            <div className="h-4 w-px bg-slate-200" />
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm border ${
+                userRole === 'Admin' ? 'bg-red-500 text-white border-red-400' :
+                userRole === 'Manager' ? 'bg-blue-600 text-white border-blue-500' :
+                userRole === 'Member' ? 'bg-indigo-500 text-white border-indigo-400' :
+                'bg-slate-200 text-slate-600 border-slate-300'
+              }`}>
+                {userRole} Role
+              </span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <motion.span
@@ -915,7 +1000,7 @@ export default function ChatWorkspace() {
                         </div>
                         <div className="space-y-5 flex-1">
                           <div className="prose prose-slate max-w-none text-slate-800 text-[15px] leading-relaxed font-medium">
-                            {msg.text}
+                            <MarkdownRenderer text={msg.text} />
                           </div>
 
                           {/* Citation & Trace Panel */}
@@ -953,6 +1038,41 @@ export default function ChatWorkspace() {
                               </div>
                             )}
 
+                            {/* Trace Stack Toggle (Hidden for Privacy) */}
+
+                            {/* Report Downloads Section */}
+                            {msg.downloads && (
+                              <div className="w-full mt-3 pt-3 border-t border-slate-100">
+                                <span className="font-bold text-slate-400 block uppercase tracking-widest text-[9px] mb-2">Export Business Report</span>
+                                <div className="flex flex-wrap gap-2">
+                                  <a
+                                    href={msg.downloads.pdf}
+                                    download
+                                    className="inline-flex items-center gap-1.5 bg-red-50 hover:bg-red-100 border border-red-200 shadow-sm px-3 py-1.5 rounded-lg text-red-600 font-bold transition-all text-[10px]"
+                                  >
+                                    <FileText className="h-3.5 w-3.5 text-red-500" />
+                                    Download PDF
+                                  </a>
+                                  <a
+                                    href={msg.downloads.docx}
+                                    download
+                                    className="inline-flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 shadow-sm px-3 py-1.5 rounded-lg text-blue-600 font-bold transition-all text-[10px]"
+                                  >
+                                    <FileText className="h-3.5 w-3.5 text-blue-500" />
+                                    Download DOCX
+                                  </a>
+                                  <a
+                                    href={msg.downloads.md}
+                                    download
+                                    className="inline-flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 shadow-sm px-3 py-1.5 rounded-lg text-slate-700 font-bold transition-all text-[10px]"
+                                  >
+                                    <FileText className="h-3.5 w-3.5 text-slate-500" />
+                                    Download Markdown
+                                  </a>
+                                </div>
+                              </div>
+                            )}
+
                           </div>
                         </div>
                       </div>
@@ -971,7 +1091,7 @@ export default function ChatWorkspace() {
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black text-white shadow-xl">
                       <Cpu className="h-5 w-5 animate-pulse" />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 space-y-2">
                       <div className="flex gap-1.5 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 shadow-sm w-fit">
                         {[0, 1, 2].map((i) => (
                           <motion.span
@@ -982,6 +1102,8 @@ export default function ChatWorkspace() {
                           />
                         ))}
                       </div>
+                      
+                      {/* Reasoning terminal hidden for privacy */}
                     </div>
                   </div>
                 </motion.div>
@@ -995,44 +1117,14 @@ export default function ChatWorkspace() {
         <div className="p-6 bg-gradient-to-t from-white via-white/95 to-transparent z-10 border-t border-slate-100">
           <div className="max-w-3xl mx-auto space-y-4">
             
-            {/* Agent Mode Selector */}
+            {/* Autonomous Routing Indicator */}
             <div className="flex items-center gap-3">
-              <div className="relative">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setIsAgentMenuOpen(!isAgentMenuOpen)}
-                  className="flex items-center gap-2 px-4 py-2 text-[10px] font-bold text-slate-700 bg-white border border-slate-200 rounded-full shadow-sm hover:border-black hover:bg-slate-50 transition-all uppercase tracking-widest"
-                >
-                  <Sparkles className="h-3 w-3 text-orange-500" />
-                  Mode: {agentMode}
-                  <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform duration-300 ${isAgentMenuOpen ? "rotate-180" : ""}`} />
-                </motion.button>
-
-                <AnimatePresence>
-                  {isAgentMenuOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute left-0 bottom-full mb-3 w-56 rounded-2xl bg-white border border-slate-200 shadow-2xl p-2 z-30"
-                    >
-                      {agentModes.map((mode) => (
-                        <button
-                          key={mode}
-                          onClick={() => { setAgentMode(mode); setIsAgentMenuOpen(false); }}
-                          className={`w-full text-left px-4 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-between ${agentMode === mode
-                              ? "text-black bg-slate-50 ring-1 ring-slate-200"
-                              : "text-slate-500 hover:text-black hover:bg-slate-50/50"
-                            }`}
-                        >
-                          {mode}
-                          {agentMode === mode && <Check className="h-3 w-3 text-emerald-500" />}
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+              <div className="flex items-center gap-2 px-4 py-2 text-[10px] font-bold text-slate-700 bg-white border border-slate-200 rounded-full shadow-sm uppercase tracking-widest">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                </span>
+                <span>Autonomous Routing</span>
               </div>
 
               <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-[0.1em] border ${
@@ -1099,3 +1191,361 @@ export default function ChatWorkspace() {
     </div>
   );
 }
+
+// Custom Markdown & Mermaid Graph Rendering Engine
+interface MermaidGraphProps {
+  code: string;
+}
+
+const parseMermaid = (text: string) => {
+  const lines = text.split("\n");
+  const nodes: { [id: string]: string } = {};
+  const edges: { from: string; to: string; label: string; bidir: boolean }[] = [];
+  
+  let layout = "TD";
+  
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) continue;
+    if (line.startsWith("graph ")) {
+      layout = line.substring(6).trim();
+      continue;
+    }
+    
+    const nodeMatch = line.match(/^(\w+)\["(.+?)"\]$/);
+    if (nodeMatch) {
+      nodes[nodeMatch[1]] = nodeMatch[2];
+      continue;
+    }
+    
+    let relation = "";
+    let edgeLine = line;
+    const relMatch = line.match(/\|(.+?)\|/);
+    if (relMatch) {
+      relation = relMatch[1];
+      edgeLine = line.replace(/\|.+?\|/, "");
+    }
+    
+    let parts: string[] = [];
+    let bidir = false;
+    if (edgeLine.includes("<-->")) {
+      parts = edgeLine.split("<-->");
+      bidir = true;
+    } else if (edgeLine.includes("-->")) {
+      parts = edgeLine.split("-->");
+    }
+    
+    if (parts.length === 2) {
+      let fromStr = parts[0].trim();
+      let toStr = parts[1].trim();
+      
+      const fromNodeMatch = fromStr.match(/^(\w+)\["(.+?)"\]$/);
+      if (fromNodeMatch) {
+        nodes[fromNodeMatch[1]] = fromNodeMatch[2];
+        fromStr = fromNodeMatch[1];
+      }
+      
+      const toNodeMatch = toStr.match(/^(\w+)\["(.+?)"\]$/);
+      if (toNodeMatch) {
+        nodes[toNodeMatch[1]] = toNodeMatch[2];
+        toStr = toNodeMatch[1];
+      }
+      
+      if (!nodes[fromStr]) nodes[fromStr] = fromStr;
+      if (!nodes[toStr]) nodes[toStr] = toStr;
+      
+      edges.push({
+        from: fromStr,
+        to: toStr,
+        label: relation,
+        bidir
+      });
+    }
+  }
+  
+  return { nodes, edges, layout };
+};
+
+const MermaidGraph: React.FC<MermaidGraphProps> = ({ code }) => {
+  const { nodes, edges } = parseMermaid(code);
+  const nodeIds = Object.keys(nodes);
+  
+  if (nodeIds.length === 0) return null;
+
+  const width = 600;
+  const height = 240;
+  const coords: { [id: string]: { x: number; y: number } } = {};
+  
+  if (nodeIds.length <= 2) {
+    nodeIds.forEach((id, i) => {
+      coords[id] = {
+        x: (i + 1) * (width / (nodeIds.length + 1)),
+        y: height / 2
+      };
+    });
+  } else {
+    const degrees: { [id: string]: number } = {};
+    nodeIds.forEach(id => degrees[id] = 0);
+    edges.forEach(e => {
+      if (degrees[e.from] !== undefined) degrees[e.from]++;
+      if (degrees[e.to] !== undefined) degrees[e.to]++;
+    });
+    
+    let centerId = nodeIds[0];
+    let maxDeg = -1;
+    nodeIds.forEach(id => {
+      if (degrees[id] > maxDeg) {
+        maxDeg = degrees[id];
+        centerId = id;
+      }
+    });
+    
+    coords[centerId] = { x: width / 2, y: height / 2 };
+    
+    const satellites = nodeIds.filter(id => id !== centerId);
+    const radiusX = 180;
+    const radiusY = 70;
+    
+    satellites.forEach((id, i) => {
+      const angle = (i * 2 * Math.PI) / satellites.length;
+      coords[id] = {
+        x: width / 2 + radiusX * Math.cos(angle),
+        y: height / 2 + radiusY * Math.sin(angle)
+      };
+    });
+  }
+
+  return (
+    <div className="my-6 p-5 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 rounded-[2.5rem] border border-slate-700/60 shadow-2xl relative overflow-hidden group">
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px] pointer-events-none" />
+      <div className="absolute inset-0 bg-radial-gradient from-indigo-500/10 via-transparent to-transparent opacity-50 pointer-events-none" />
+
+      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 flex items-center gap-2 relative z-10">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        Entity Relationship Topology
+      </h4>
+
+      <div className="overflow-x-auto relative z-10">
+        <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="mx-auto block">
+          <defs>
+            <marker
+              id="arrow"
+              viewBox="0 0 10 10"
+              refX="6"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#818cf8" />
+            </marker>
+          </defs>
+
+          {edges.map((edge, idx) => {
+            const start = coords[edge.from];
+            const end = coords[edge.to];
+            if (!start || !end) return null;
+
+            const dx = end.x - start.x;
+            const dy = end.y - start.y;
+            const len = Math.sqrt(dx * dx + dy * dy);
+
+            const startOffset = 60;
+            const endOffset = 65;
+            
+            const x1 = start.x + (dx * startOffset) / len;
+            const y1 = start.y + (dy * startOffset) / len;
+            const x2 = end.x - (dx * endOffset) / len;
+            const y2 = end.y - (dy * endOffset) / len;
+
+            const xMid = (x1 + x2) / 2;
+            const yMid = (y1 + y2) / 2;
+
+            return (
+              <g key={idx}>
+                <line
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke="#818cf8"
+                  strokeWidth="3"
+                  className="opacity-20 blur-[1px] group-hover:opacity-40 transition-opacity"
+                />
+                
+                <line
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke="#6366f1"
+                  strokeWidth="1.5"
+                  markerEnd={edge.bidir ? undefined : "url(#arrow)"}
+                  markerStart={edge.bidir ? "url(#arrow)" : undefined}
+                  strokeDasharray="4 4"
+                />
+
+                {edge.label && (
+                  <foreignObject
+                    x={xMid - 60}
+                    y={yMid - 12}
+                    width="120"
+                    height="24"
+                    className="overflow-visible"
+                  >
+                    <div className="flex items-center justify-center">
+                      <span className="bg-slate-900/90 text-indigo-300 border border-slate-750 rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest shadow-md backdrop-blur-sm">
+                        {edge.label}
+                      </span>
+                    </div>
+                  </foreignObject>
+                )}
+              </g>
+            );
+          })}
+
+          {nodeIds.map((id) => {
+            const coord = coords[id];
+            if (!coord) return null;
+            const name = nodes[id];
+
+            return (
+              <foreignObject
+                key={id}
+                x={coord.x - 70}
+                y={coord.y - 28}
+                width="140"
+                height="56"
+                className="overflow-visible"
+              >
+                <div className="h-full w-full bg-slate-950/80 border border-slate-700/50 rounded-2xl p-2.5 flex flex-col justify-center items-center text-center shadow-lg backdrop-blur-md hover:border-indigo-500 hover:scale-105 hover:shadow-[0_0_15px_rgba(99,102,241,0.2)] transition-all cursor-pointer select-none">
+                  <span className="text-[10.5px] font-bold text-slate-200 truncate max-w-full">
+                    {name}
+                  </span>
+                  <span className="text-[7.5px] font-bold uppercase tracking-[0.15em] text-indigo-400 mt-0.5">
+                    {id}
+                  </span>
+                </div>
+              </foreignObject>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+};
+
+interface MarkdownRendererProps {
+  text: string;
+}
+
+const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text }) => {
+  if (!text) return null;
+
+  const blocks: { type: "text" | "heading" | "list" | "mermaid" | "code"; content: string; level?: number }[] = [];
+  const lines = text.split("\n");
+  let inCodeBlock = false;
+  let codeLanguage = "";
+  let codeContent: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    if (line.trim().startsWith("```")) {
+      if (inCodeBlock) {
+        blocks.push({
+          type: codeLanguage === "mermaid" ? "mermaid" : "code",
+          content: codeContent.join("\n")
+        });
+        inCodeBlock = false;
+        codeContent = [];
+        codeLanguage = "";
+      } else {
+        inCodeBlock = true;
+        codeLanguage = line.trim().substring(3).trim();
+      }
+      continue;
+    }
+
+    if (inCodeBlock) {
+      codeContent.push(line);
+      continue;
+    }
+
+    const trimmed = line.trim();
+    if (trimmed.startsWith("### ")) {
+      blocks.push({ type: "heading", content: trimmed.substring(4), level: 3 });
+    } else if (trimmed.startsWith("## ")) {
+      blocks.push({ type: "heading", content: trimmed.substring(3), level: 2 });
+    } else if (trimmed.startsWith("# ")) {
+      blocks.push({ type: "heading", content: trimmed.substring(2), level: 1 });
+    } else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      blocks.push({ type: "list", content: trimmed.substring(2) });
+    } else {
+      if (trimmed === "") continue;
+      blocks.push({ type: "text", content: line });
+    }
+  }
+
+  if (inCodeBlock && codeContent.length > 0) {
+    blocks.push({
+      type: codeLanguage === "mermaid" ? "mermaid" : "code",
+      content: codeContent.join("\n")
+    });
+  }
+
+  const renderInline = (str: string) => {
+    const parts = str.split(/(\*\*.*?\*\*|`.*?`)/);
+    return parts.map((part, idx) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={idx} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith("`") && part.endsWith("`")) {
+        return <code key={idx} className="bg-slate-100 px-1 py-0.5 rounded text-xs font-mono text-pink-600">{part.slice(1, -1)}</code>;
+      }
+      return part;
+    });
+  };
+
+  return (
+    <div className="space-y-3">
+      {blocks.map((block, idx) => {
+        if (block.type === "heading") {
+          const Tag = block.level === 1 ? "h1" : block.level === 2 ? "h2" : "h3";
+          const classes = block.level === 1 
+            ? "text-2xl font-extrabold text-slate-900 tracking-tight mt-6 mb-2" 
+            : block.level === 2 
+              ? "text-xl font-bold text-slate-900 tracking-tight mt-5 mb-2" 
+              : "text-base font-black text-slate-900 tracking-tight mt-4 mb-1";
+          return <Tag key={idx} className={classes}>{renderInline(block.content)}</Tag>;
+        }
+        if (block.type === "list") {
+          return (
+            <ul key={idx} className="list-disc pl-5 space-y-1">
+              <li className="text-slate-600 text-sm font-medium leading-relaxed">{renderInline(block.content)}</li>
+            </ul>
+          );
+        }
+        if (block.type === "mermaid") {
+          return <MermaidGraph key={idx} code={block.content} />;
+        }
+        if (block.type === "code") {
+          return (
+            <pre key={idx} className="bg-slate-900 text-slate-100 p-4 rounded-2xl overflow-x-auto text-xs font-mono shadow-inner my-2">
+              <code>{block.content}</code>
+            </pre>
+          );
+        }
+        return (
+          <p key={idx} className="text-slate-600 text-sm font-medium leading-relaxed">
+            {renderInline(block.content)}
+          </p>
+        );
+      })}
+    </div>
+  );
+};
+

@@ -22,6 +22,8 @@ import {
   Terminal,
   MessageSquare
 } from "lucide-react";
+import ElectricBorder from "@/components/ElectricBorder";
+import TextPressure from "@/components/TextPressure";
 
 // Animation Variants for Scroll Reveals
 const containerVariants = {
@@ -584,104 +586,144 @@ export default function Home() {
             {/* Plan 1: Free */}
             <motion.div 
               variants={cardRevealVariants}
-              whileHover={{ y: -8, scale: 1.015, boxShadow: "0 20px 40px rgba(0,0,0,0.03)" }}
-              className="premium-card flex flex-col justify-between bg-white/80 backdrop-blur-sm transition-all duration-200"
+              whileHover={{ y: -8 }}
+              className="h-full flex"
             >
-              <div>
-                <h3 className="text-lg font-bold">Free</h3>
-                <p className="text-sm text-slate-400 mt-1">For sandbox testing</p>
-                <div className="mt-6 flex items-baseline">
-                  <span className="text-4xl font-extrabold tracking-tight">₹0</span>
-                  <span className="text-slate-400 ml-1 text-sm">/month</span>
+              <ElectricBorder
+                color="#94a3b8"
+                speed={0.6}
+                chaos={0.06}
+                borderRadius={24}
+                style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}
+              >
+                <div className="premium-card border-transparent flex flex-col justify-between bg-white/80 backdrop-blur-sm h-full rounded-[24px]">
+                  <div>
+                    <h3 className="text-lg font-bold">Free</h3>
+                    <p className="text-sm text-slate-400 mt-1">For sandbox testing</p>
+                    <div className="mt-6 flex items-baseline">
+                      <span className="text-4xl font-extrabold tracking-tight">₹0</span>
+                      <span className="text-slate-400 ml-1 text-sm">/month</span>
+                    </div>
+                    <ul className="mt-6 space-y-3 text-sm text-slate-500">
+                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> 50 documents</li>
+                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> 100 queries/month</li>
+                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Standard AI Chat agent</li>
+                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Graph sandbox</li>
+                    </ul>
+                  </div>
+                  <Link href={getStartedHref} className="premium-btn-secondary w-full text-center mt-8 py-2">
+                    Get Started
+                  </Link>
                 </div>
-                <ul className="mt-6 space-y-3 text-sm text-slate-500">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> 50 documents</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> 100 queries/month</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Standard AI Chat agent</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Graph sandbox</li>
-                </ul>
-              </div>
-              <Link href={getStartedHref} className="premium-btn-secondary w-full text-center mt-8 py-2">
-                Get Started
-              </Link>
+              </ElectricBorder>
             </motion.div>
 
             {/* Plan 2: Starter */}
             <motion.div 
               variants={cardRevealVariants}
-              whileHover={{ y: -8, scale: 1.015, boxShadow: "0 20px 40px rgba(0,0,0,0.03)" }}
-              className="premium-card flex flex-col justify-between bg-white/80 backdrop-blur-sm transition-all duration-200"
+              whileHover={{ y: -8 }}
+              className="h-full flex"
             >
-              <div>
-                <h3 className="text-lg font-bold">Starter</h3>
-                <p className="text-sm text-slate-400 mt-1">For growing teams</p>
-                <div className="mt-6 flex items-baseline">
-                  <span className="text-4xl font-extrabold tracking-tight">₹999</span>
-                  <span className="text-slate-400 ml-1 text-sm">/month</span>
+              <ElectricBorder
+                color="#f59e0b"
+                speed={0.6}
+                chaos={0.06}
+                borderRadius={24}
+                style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}
+              >
+                <div className="premium-card border-transparent flex flex-col justify-between bg-white/80 backdrop-blur-sm h-full rounded-[24px]">
+                  <div>
+                    <h3 className="text-lg font-bold">Starter</h3>
+                    <p className="text-sm text-slate-400 mt-1">For growing teams</p>
+                    <div className="mt-6 flex items-baseline">
+                      <span className="text-4xl font-extrabold tracking-tight">₹999</span>
+                      <span className="text-slate-400 ml-1 text-sm">/month</span>
+                    </div>
+                    <ul className="mt-6 space-y-3 text-sm text-slate-500">
+                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> 1,000 documents</li>
+                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Team workspace</li>
+                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Notion & Drive sync</li>
+                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Standard API access</li>
+                    </ul>
+                  </div>
+                  <Link href={getStartedHref} className="premium-btn-secondary w-full text-center mt-8 py-2">
+                    Get Started
+                  </Link>
                 </div>
-                <ul className="mt-6 space-y-3 text-sm text-slate-500">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> 1,000 documents</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Team workspace</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Notion & Drive sync</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Standard API access</li>
-                </ul>
-              </div>
-              <Link href={getStartedHref} className="premium-btn-secondary w-full text-center mt-8 py-2">
-                Get Started
-              </Link>
+              </ElectricBorder>
             </motion.div>
 
             {/* Plan 3: Pro */}
             <motion.div 
               variants={cardRevealVariants}
-              whileHover={{ y: -12, scale: 1.03, boxShadow: "0 25px 50px rgba(249,115,22,0.12)" }}
-              className="premium-card flex flex-col justify-between bg-white/90 backdrop-blur-md relative border-orange-500/40 ring-1 ring-orange-500/20 transition-all duration-200"
+              whileHover={{ y: -12 }}
+              className="h-full flex"
             >
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full shadow-sm">
-                Most Popular
-              </span>
-              <div>
-                <h3 className="text-lg font-bold">Pro</h3>
-                <p className="text-sm text-slate-400 mt-1">For advanced intelligence</p>
-                <div className="mt-6 flex items-baseline">
-                  <span className="text-4xl font-extrabold tracking-tight">₹4,999</span>
-                  <span className="text-slate-400 ml-1 text-sm">/month</span>
+              <ElectricBorder
+                color="#ff4500"
+                speed={0.6}
+                chaos={0.06}
+                borderRadius={24}
+                style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}
+              >
+                <div className="premium-card border-transparent flex flex-col justify-between bg-white/90 backdrop-blur-md h-full rounded-[24px] relative">
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full shadow-sm z-30">
+                    Most Popular
+                  </span>
+                  <div>
+                    <h3 className="text-lg font-bold">Pro</h3>
+                    <p className="text-sm text-slate-400 mt-1">For advanced intelligence</p>
+                    <div className="mt-6 flex items-baseline">
+                      <span className="text-4xl font-extrabold tracking-tight">₹4,999</span>
+                      <span className="text-slate-400 ml-1 text-sm">/month</span>
+                    </div>
+                    <ul className="mt-6 space-y-3 text-sm text-slate-500">
+                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Graph analytics</li>
+                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Advanced agents</li>
+                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Expandable trace stack</li>
+                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Confluence & Git sync</li>
+                    </ul>
+                  </div>
+                  <Link href={getStartedHref} className="premium-btn w-full text-center mt-8 py-2">
+                    Get Started
+                  </Link>
                 </div>
-                <ul className="mt-6 space-y-3 text-sm text-slate-500">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Graph analytics</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Advanced agents</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Expandable trace stack</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Confluence & Git sync</li>
-                </ul>
-              </div>
-              <Link href={getStartedHref} className="premium-btn w-full text-center mt-8 py-2">
-                Get Started
-              </Link>
+              </ElectricBorder>
             </motion.div>
 
             {/* Plan 4: Business */}
             <motion.div 
               variants={cardRevealVariants}
-              whileHover={{ y: -8, scale: 1.015, boxShadow: "0 20px 40px rgba(0,0,0,0.03)" }}
-              className="premium-card flex flex-col justify-between bg-white/80 backdrop-blur-sm transition-all duration-200"
+              whileHover={{ y: -8 }}
+              className="h-full flex"
             >
-              <div>
-                <h3 className="text-lg font-bold">Business</h3>
-                <p className="text-sm text-slate-400 mt-1">For full enterprise sync</p>
-                <div className="mt-6 flex items-baseline">
-                  <span className="text-4xl font-extrabold tracking-tight">₹14,999+</span>
-                  <span className="text-slate-400 ml-1 text-sm">/month</span>
+              <ElectricBorder
+                color="#6366f1"
+                speed={0.6}
+                chaos={0.06}
+                borderRadius={24}
+                style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}
+              >
+                <div className="premium-card border-transparent flex flex-col justify-between bg-white/80 backdrop-blur-sm h-full rounded-[24px]">
+                  <div>
+                    <h3 className="text-lg font-bold">Business</h3>
+                    <p className="text-sm text-slate-400 mt-1">For full enterprise sync</p>
+                    <div className="mt-6 flex items-baseline">
+                      <span className="text-4xl font-extrabold tracking-tight">₹14,999+</span>
+                      <span className="text-slate-400 ml-1 text-sm">/month</span>
+                    </div>
+                    <ul className="mt-6 space-y-3 text-sm text-slate-500">
+                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> SSO integration</li>
+                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Unlimited users</li>
+                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Priority support SLA</li>
+                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Dedicated VPC hosting</li>
+                    </ul>
+                  </div>
+                  <Link href={getStartedHref} className="premium-btn-secondary w-full text-center mt-8 py-2">
+                    Contact Sales
+                  </Link>
                 </div>
-                <ul className="mt-6 space-y-3 text-sm text-slate-500">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> SSO integration</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Unlimited users</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Priority support SLA</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-black shrink-0" /> Dedicated VPC hosting</li>
-                </ul>
-              </div>
-              <Link href={getStartedHref} className="premium-btn-secondary w-full text-center mt-8 py-2">
-                Contact Sales
-              </Link>
+              </ElectricBorder>
             </motion.div>
           </motion.div>
         </div>
@@ -833,14 +875,20 @@ export default function Home() {
 
           {/* Huge Typography Divider & Brand Signature */}
           <div className="border-t border-slate-200/80 pt-16 pb-8 text-center select-none overflow-hidden">
-            <div className="inline-flex justify-center items-center text-7xl sm:text-9xl md:text-[11rem] lg:text-[14rem] font-black tracking-tighter text-black font-sans leading-none">
-              <span className="inline-block">N</span>
-              <span className="inline-block">E</span>
-              <span className="inline-block">X</span>
-              <span className="inline-block">U</span>
-              <span className="inline-block -translate-y-3 sm:-translate-y-5 md:-translate-y-8 lg:-translate-y-10 origin-bottom select-none">
-                S
-              </span>
+            <div className="w-full max-w-7xl mx-auto h-24 sm:h-36 md:h-52 lg:h-64 relative">
+              <TextPressure
+                text="NEXUS"
+                flex={false}
+                alpha={false}
+                stroke={false}
+                width={true}
+                weight={true}
+                italic={false}
+                textColor="#000000"
+                minFontSize={64}
+                maxFontSize={224}
+                className="nexus-footer-pressure font-sans font-black tracking-tighter"
+              />
             </div>
           </div>
 

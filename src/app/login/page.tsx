@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Cpu, ArrowRight, Globe, Mail, Lock, ShieldCheck, CheckSquare, Square } from "lucide-react";
+import { encryptData, decryptData } from "@/utils/crypto";
 
 // Mock database for validation
 const VALID_CREDENTIALS = {
@@ -22,14 +23,21 @@ function LoginContent() {
   const [name, setName] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
+  const [selectedRole, setSelectedRole] = useState("Admin");
+  const [workspaceId, setWorkspaceId] = useState("NEXUS-HQ");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     // Check if we should auto-redirect (already logged in and remembered)
-    const auth = localStorage.getItem("nexus_auth");
-    if (auth) {
-        router.push("/chat");
-        return;
+    const encryptedAuth = localStorage.getItem("nexus_auth");
+    if (encryptedAuth) {
+        try {
+            const auth = decryptData(encryptedAuth);
+            if (auth && JSON.parse(auth).userId) {
+                router.push("/chat");
+                return;
+            }
+        } catch (e) {}
     }
     setTimeout(() => setMounted(true), 0);
   }, [router]);
@@ -77,12 +85,20 @@ function LoginContent() {
       }
 
       // Successful simulated auth
-      const authData = JSON.stringify({ email, name: name || (email.split('@')[0]) });
+      const activeWorkspace = workspaceId.trim() ? workspaceId.trim().toUpperCase() : "NEXUS-HQ";
+      const authData = JSON.stringify({
+        userId: `usr-${email.split('@')[0]}`,
+        email,
+        name: name || (email.split('@')[0]),
+        role: selectedRole,
+        workspace: activeWorkspace
+      });
+      const encryptedAuth = encryptData(authData);
       
       if (rememberMe) {
-        localStorage.setItem("nexus_auth", authData);
+        localStorage.setItem("nexus_auth", encryptedAuth);
       } else {
-        sessionStorage.setItem("nexus_auth", authData);
+        sessionStorage.setItem("nexus_auth", encryptedAuth);
       }
 
       setIsLoading(false);
@@ -93,15 +109,23 @@ function LoginContent() {
   const handleGoogleLogin = () => {
     setIsLoading(true);
     setTimeout(() => {
-      const authData = JSON.stringify({ email: "google.user@nexus-ai.com", name: "Sreeshanth" });
-      localStorage.setItem("nexus_auth", authData);
+      const activeWorkspace = workspaceId.trim() ? workspaceId.trim().toUpperCase() : "NEXUS-HQ";
+      const authData = JSON.stringify({
+        userId: "usr-google-sreeshanth",
+        email: "google.user@nexus-ai.com",
+        name: "Sreeshanth",
+        role: selectedRole,
+        workspace: activeWorkspace
+      });
+      const encryptedAuth = encryptData(authData);
+      localStorage.setItem("nexus_auth", encryptedAuth);
       setIsLoading(false);
       router.push("/onboarding");
     }, 600);
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 bg-transparent">
+    <div className="flex min-h-[calc(100vh-6rem)] flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 bg-transparent">
       <div className="w-full max-w-md space-y-8">
         <div className="flex flex-col items-center justify-center text-center">
           <motion.div 
@@ -179,11 +203,9 @@ function LoginContent() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5 ml-1">
-                <label htmlFor="password" className="block text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                  Password
-                </label>
-              </div>
+              <label htmlFor="password" className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+                Password
+              </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-4 flex items-center text-slate-400">
                   <Lock className="h-4 w-4" />
@@ -198,6 +220,43 @@ function LoginContent() {
                   className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-11 py-3 text-sm focus:outline-none focus:border-black focus:ring-0 transition-all duration-200 placeholder:text-slate-300 font-medium"
                 />
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="workspace" className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+                Company / Workspace ID
+              </label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-4 flex items-center text-slate-400">
+                  <Globe className="h-4 w-4" />
+                </span>
+                <input
+                  id="workspace"
+                  type="text"
+                  required
+                  value={workspaceId}
+                  onChange={(e) => setWorkspaceId(e.target.value)}
+                  placeholder="COMPANY-A or NEXUS-HQ"
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-11 py-3 text-sm focus:outline-none focus:border-black focus:ring-0 transition-all duration-200 placeholder:text-slate-300 font-bold uppercase"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="role" className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+                Workspace Access Role
+              </label>
+              <select
+                id="role"
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-black focus:ring-0 font-semibold text-slate-600 cursor-pointer"
+              >
+                <option value="Admin">Admin (Full Control)</option>
+                <option value="Manager">Manager (Edit & View)</option>
+                <option value="Member">Member (Edit & View)</option>
+                <option value="Viewer">Viewer (Read-Only)</option>
+              </select>
             </div>
 
             <div className="flex items-center justify-between px-1">

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Check, Cpu, Zap, Sparkles, Shield, Rocket, ArrowRight, CreditCard, Activity } from "lucide-react";
+import ElectricBorder from "@/components/ElectricBorder";
 
 const PLANS = [
   {
@@ -178,67 +179,79 @@ export default function PlanSelection() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 * idx }}
               whileHover={{ y: -5 }}
-              className={`relative flex flex-col p-8 rounded-3xl border transition-all duration-300 ${
-                currentPlan === plan.id 
-                  ? "border-black bg-white shadow-2xl ring-1 ring-black" 
-                  : `${plan.border} ${plan.color}`
-              } ${selectedPlan === plan.id ? "opacity-70 scale-[0.98]" : ""}`}
+              className="h-full flex"
             >
-              {plan.popular && (
-                <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-lg">
-                  Recommended
-                </span>
-              )}
-
-              {currentPlan === plan.id && (
-                <span className="absolute -top-4 left-6 bg-emerald-500 text-white text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
-                  <Check className="h-3 w-3" />
-                  Active Plan
-                </span>
-              )}
-              
-              <div className="flex justify-between items-start mb-6">
-                <div className={`p-3 rounded-2xl bg-white shadow-sm border ${plan.border}`}>
-                  {plan.icon}
-                </div>
-              </div>
-
-              <h3 className="text-2xl font-bold text-slate-900">{plan.name}</h3>
-              <p className="text-sm text-slate-500 mt-2 min-h-[40px] leading-relaxed">{plan.description}</p>
-              
-              <div className="mt-6 flex items-baseline">
-                <span className="text-4xl font-extrabold text-slate-900">{plan.price}</span>
-                <span className="text-slate-500 ml-1 text-sm font-medium">/month</span>
-              </div>
-
-              <ul className="mt-8 space-y-4 flex-1">
-                {plan.features.map((feature, fIdx) => (
-                  <li key={fIdx} className="flex items-start gap-3 text-sm text-slate-600">
-                    <div className="mt-1 h-4 w-4 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
-                        <Check className="h-3 w-3 text-emerald-600" />
-                    </div>
-                    <span className="font-medium">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <button
-                onClick={() => handleSelectPlan(plan.id)}
-                disabled={selectedPlan !== null}
-                className={`mt-10 w-full py-4 rounded-2xl font-bold transition-all shadow-sm ${
-                  currentPlan === plan.id
-                    ? "bg-slate-100 text-slate-400 cursor-default"
-                    : selectedPlan === plan.id
-                        ? "bg-emerald-500 text-white"
-                        : "bg-black text-white hover:bg-slate-800 hover:shadow-lg active:scale-[0.98]"
-                } disabled:opacity-50`}
+              <ElectricBorder
+                color={plan.id === "pro" ? "#ff4500" : plan.id === "starter" ? "#f59e0b" : plan.id === "business" ? "#6366f1" : "#94a3b8"}
+                speed={0.6}
+                chaos={0.06}
+                borderRadius={24}
+                style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}
               >
-                {currentPlan === plan.id 
-                    ? "Current Plan" 
-                    : selectedPlan === plan.id 
-                        ? "Processing..." 
-                        : `Switch to ${plan.name}`}
-              </button>
+                <div
+                  className={`relative flex flex-col p-8 rounded-[24px] border h-full transition-all duration-300 ${
+                    currentPlan === plan.id 
+                      ? "border-transparent bg-white shadow-2xl" 
+                      : `border-transparent ${plan.color}`
+                  } ${selectedPlan === plan.id ? "opacity-70 scale-[0.98]" : ""}`}
+                >
+                  {plan.popular && (
+                    <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-lg">
+                      Recommended
+                    </span>
+                  )}
+
+                  {currentPlan === plan.id && (
+                    <span className="absolute -top-4 left-6 bg-emerald-500 text-white text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
+                      <Check className="h-3 w-3" />
+                      Active Plan
+                    </span>
+                  )}
+                  
+                  <div className="flex justify-between items-start mb-6">
+                    <div className={`p-3 rounded-2xl bg-white shadow-sm border ${plan.border}`}>
+                      {plan.icon}
+                    </div>
+                  </div>
+
+                  <h3 className="text-2xl font-bold text-slate-900">{plan.name}</h3>
+                  <p className="text-sm text-slate-500 mt-2 min-h-[40px] leading-relaxed">{plan.description}</p>
+                  
+                  <div className="mt-6 flex items-baseline">
+                    <span className="text-4xl font-extrabold text-slate-900">{plan.price}</span>
+                    <span className="text-slate-500 ml-1 text-sm font-medium">/month</span>
+                  </div>
+
+                  <ul className="mt-8 space-y-4 flex-1">
+                    {plan.features.map((feature, fIdx) => (
+                      <li key={fIdx} className="flex items-start gap-3 text-sm text-slate-600">
+                        <div className="mt-1 h-4 w-4 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                            <Check className="h-3 w-3 text-emerald-600" />
+                        </div>
+                        <span className="font-medium">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <button
+                    onClick={() => handleSelectPlan(plan.id)}
+                    disabled={selectedPlan !== null}
+                    className={`mt-10 w-full py-4 rounded-2xl font-bold transition-all shadow-sm ${
+                      currentPlan === plan.id
+                        ? "bg-slate-100 text-slate-400 cursor-default"
+                        : selectedPlan === plan.id
+                            ? "bg-emerald-500 text-white"
+                            : "bg-black text-white hover:bg-slate-800 hover:shadow-lg active:scale-[0.98]"
+                    } disabled:opacity-50`}
+                  >
+                    {currentPlan === plan.id 
+                        ? "Current Plan" 
+                        : selectedPlan === plan.id 
+                            ? "Processing..." 
+                            : `Switch to ${plan.name}`}
+                  </button>
+                </div>
+              </ElectricBorder>
             </motion.div>
           ))}
         </div>

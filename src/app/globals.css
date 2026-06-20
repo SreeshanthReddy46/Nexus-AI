@@ -157,4 +157,15 @@ body {
   animation: ocean-wave 4.5s ease-in-out infinite;
 }
 
+@keyframes colorSwap {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
 
+.animate-color-swap {
+  animation: colorSwap 6s ease-in-out infinite;
+}

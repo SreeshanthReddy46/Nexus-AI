@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { encryptData, decryptData } from "@/utils/crypto";
 import {
   Users,
   Code,
@@ -61,6 +62,11 @@ export default function OnboardingPage() {
   const [file, setFile] = useState<File | null>(null);
   const [repoUrl, setRepoUrl] = useState("");
   const [isDragActive, setIsDragActive] = useState(false);
+  const [githubError, setGithubError] = useState("");
+  const [isValidatingGithub, setIsValidatingGithub] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStep, setUploadStep] = useState("");
 
   // Step 5 State: Generating base loading
   const [generationStep, setGenerationStep] = useState(0);
@@ -73,12 +79,13 @@ export default function OnboardingPage() {
 
   // Check login
   useEffect(() => {
-    const auth = localStorage.getItem("nexus_auth");
-    if (!auth) {
+    const encryptedAuth = localStorage.getItem("nexus_auth");
+    if (!encryptedAuth) {
       router.push("/login");
     } else {
       try {
-        const parsed = JSON.parse(auth);
+        const decrypted = decryptData(encryptedAuth);
+        const parsed = JSON.parse(decrypted);
         if (parsed.name) {
           setTimeout(() => setUserName(parsed.name), 0);
         }
@@ -109,6 +116,16 @@ export default function OnboardingPage() {
   };
 
   const completeOnboarding = () => {
+    let userWorkspace = "NEXUS-HQ";
+    const encryptedAuth = localStorage.getItem("nexus_auth");
+    if (encryptedAuth) {
+      try {
+        const decrypted = decryptData(encryptedAuth);
+        const parsed = JSON.parse(decrypted);
+        userWorkspace = parsed.workspace || "NEXUS-HQ";
+      } catch (e) {}
+    }
+
     // Generate a custom document based on user input to save in localstorage
     const newDocId = `doc-onboard-${Date.now()}`;
     const dateStr = new Date().toISOString().split("T")[0];
@@ -136,17 +153,21 @@ export default function OnboardingPage() {
       name: docName,
       source: docSource,
       uploadDate: dateStr,
-      status: "Active",
+      status: "Active" as const,
       chunks: docChunks,
-      entities: docEntities
+      entities: docEntities,
+      workspace: userWorkspace
     };
 
     // Load existing docs or defaults
-    const cachedDocs = localStorage.getItem("nexus_docs");
+    const cachedDocsEncrypted = localStorage.getItem("nexus_docs");
     let docs = [];
-    if (cachedDocs) {
+    if (cachedDocsEncrypted) {
       try {
-        docs = JSON.parse(cachedDocs);
+        const decrypted = decryptData(cachedDocsEncrypted);
+        if (decrypted) {
+          docs = JSON.parse(decrypted);
+        }
       } catch (e) {
         docs = [];
       }
@@ -160,36 +181,40 @@ export default function OnboardingPage() {
           name: "checkout-api-v2.md",
           source: "Notion",
           uploadDate: "2026-06-08",
-          status: "Active",
+          status: "Active" as const,
           chunks: 12,
-          entities: ["Checkout Team", "Sarah Jenkins", "Payment Service"]
+          entities: ["Checkout Team", "Sarah Jenkins", "Payment Service"],
+          workspace: userWorkspace
         },
         {
           id: "doc-2",
           name: "phoenix-sprint-summary.docx",
           source: "Confluence",
           uploadDate: "2026-06-05",
-          status: "Active",
+          status: "Active" as const,
           chunks: 45,
-          entities: ["Project Phoenix", "Marcus Chen", "Checkout Team"]
+          entities: ["Project Phoenix", "Marcus Chen", "Checkout Team"],
+          workspace: userWorkspace
         },
         {
           id: "doc-3",
           name: "ci-cd-playbook.txt",
           source: "GitHub",
           uploadDate: "2026-06-01",
-          status: "Active",
+          status: "Active" as const,
           chunks: 28,
-          entities: ["AWS Infrastructure", "DevOps Team", "ECS Canary"]
+          entities: ["AWS Infrastructure", "DevOps Team", "ECS Canary"],
+          workspace: userWorkspace
         },
         {
           id: "doc-4",
           name: "infrastructure-rules.md",
           source: "Google Drive",
           uploadDate: "2026-05-28",
-          status: "Active",
+          status: "Active" as const,
           chunks: 15,
-          entities: ["AWS Infrastructure", "DevOps Team", "Security Compliance"]
+          entities: ["AWS Infrastructure", "DevOps Team", "Security Compliance"],
+          workspace: userWorkspace
         }
       ];
       docs = [...defaultDocs, newDoc];
@@ -197,12 +222,83 @@ export default function OnboardingPage() {
       docs.push(newDoc);
     }
 
-    localStorage.setItem("nexus_docs", JSON.stringify(docs));
+    const encryptedDocs = encryptData(JSON.stringify(docs));
+    localStorage.setItem("nexus_docs", encryptedDocs);
     localStorage.setItem("nexus_onboarded", "true");
     localStorage.setItem("nexus_plan", "free"); // Initialize default plan
 
     // Redirect directly to the AI chat
     router.push("/chat");
+  };
+
+  const handleFileSelect = (selectedFile: File) => {
+    const lastDotIndex = selectedFile.name.lastIndexOf('.');
+    const ext = lastDotIndex !== -1 ? selectedFile.name.substring(lastDotIndex).toLowerCase() : "";
+    const allowedExts = ['.pdf', '.docx', '.txt', '.md'];
+    
+    if (!allowedExts.includes(ext)) {
+      setGithubError("Invalid File: Only PDF, DOCX, TXT, and Markdown files are permitted.");
+      return;
+    }
+
+    setFile(selectedFile);
+    setIsUploading(true);
+    setUploadProgress(0);
+    const extName = ext.substring(1).toUpperCase();
+    setUploadStep(`Reading ${extName} stream...`);
+    setGithubError("");
+    
+    const uploadSteps = [
+      { p: 25, label: "Extracting metadata and layout structures..." },
+      { p: 55, label: "Running semantic sentence chunker..." },
+      { p: 80, label: "Analyzing entity links and keywords..." },
+      { p: 100, label: "Preparing staging cache upload..." }
+    ];
+    
+    let stepIdx = 0;
+    const interval = setInterval(() => {
+      if (stepIdx < uploadSteps.length) {
+        setUploadProgress(uploadSteps[stepIdx].p);
+        setUploadStep(uploadSteps[stepIdx].label);
+        stepIdx++;
+      } else {
+        clearInterval(interval);
+        setIsUploading(false);
+        setUploadStep("");
+      }
+    }, 600);
+  };
+
+  const handleCreateKnowledgeBase = async () => {
+    if (repoUrl) {
+      setGithubError("");
+      const cleanUrl = repoUrl.trim().replace(/https?:\/\/github\.com\//, "");
+      const parts = cleanUrl.split("/").filter(Boolean);
+      if (parts.length < 2) {
+        setGithubError("Please enter a valid format, e.g., owner/repo or https://github.com/owner/repo");
+        return;
+      }
+      
+      const owner = parts[0];
+      const repo = parts[1].replace(/\.git$/, "");
+      
+      setIsValidatingGithub(true);
+      try {
+        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
+        if (!response.ok) {
+          setGithubError("This GitHub repository does not exist or is private. Please verify the owner and repository names.");
+          setIsValidatingGithub(false);
+          return;
+        }
+      } catch (err) {
+        setGithubError("Failed to connect to GitHub API. Please check your internet connection.");
+        setIsValidatingGithub(false);
+        return;
+      }
+      setIsValidatingGithub(false);
+    }
+    
+    startGeneration();
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -221,12 +317,12 @@ export default function OnboardingPage() {
     setIsDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0]);
+      handleFileSelect(e.dataTransfer.files[0]);
     }
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 bg-transparent z-10 relative">
+    <div className="flex min-h-[calc(100vh-6rem)] flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 bg-transparent z-10 relative">
       <div className="w-full max-w-lg space-y-6">
 
         {/* Progress bar */}
@@ -447,24 +543,48 @@ export default function OnboardingPage() {
                   onDragOver={handleDrag}
                   onDragLeave={handleDrag}
                   onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 flex flex-col items-center justify-center ${isDragActive ? "border-black bg-slate-50/80 scale-[1.01]" : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/30 hover:scale-[1.005]"
-                    }`}
+                  className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 flex flex-col items-center justify-center relative overflow-hidden ${
+                    isDragActive ? "border-black bg-slate-50/80 scale-[1.01]" : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/30 hover:scale-[1.005]"
+                  }`}
                 >
-                  <UploadCloud className="h-8 w-8 text-slate-400 mb-2" />
-                  {file ? (
+                  {isUploading ? (
+                    <div className="space-y-4 w-full py-2">
+                      <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-black to-transparent animate-[pulse_1s_infinite] top-1/2" />
+                      <div className="flex justify-center">
+                        <div className="relative flex items-center justify-center h-12 w-12 rounded-xl bg-slate-50 border border-slate-100">
+                          <FileText className="h-6 w-6 text-black animate-pulse" />
+                          <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-black opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-black"></span>
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-2 max-w-[280px] mx-auto">
+                        <p className="text-[11px] font-bold text-slate-800">{uploadStep}</p>
+                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                          <motion.div
+                            className="bg-black h-1.5 transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                        <p className="text-[9px] text-slate-400 font-bold font-mono">Progress: {uploadProgress}%</p>
+                      </div>
+                    </div>
+                  ) : file ? (
                     <div className="space-y-1">
                       <p className="text-xs font-bold text-slate-800">{file.name}</p>
                       <p className="text-[10px] text-slate-400">{(file.size / 1024).toFixed(1)} KB</p>
                       <button
                         onClick={() => setFile(null)}
-                        className="text-[10px] text-red-500 font-semibold hover:underline"
+                        className="text-[10px] text-red-500 font-semibold hover:underline mt-1"
                       >
                         Remove file
                       </button>
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <p className="text-xs font-semibold text-slate-600">Drag & Drop PDF or workspace file here</p>
+                      <UploadCloud className="h-8 w-8 text-slate-400 mb-2 mx-auto" />
+                      <p className="text-xs font-semibold text-slate-600">Drag & Drop files (PDF, DOCX, TXT, MD) here</p>
                       <p className="text-[10px] text-slate-400">or</p>
                       <label className="premium-btn py-1.5 px-3 text-[10px] cursor-pointer inline-block">
                         Browse Files
@@ -472,7 +592,7 @@ export default function OnboardingPage() {
                           type="file"
                           accept=".pdf,.md,.txt,.docx"
                           className="hidden"
-                          onChange={(e) => e.target.files && setFile(e.target.files[0])}
+                          onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])}
                         />
                       </label>
                     </div>
@@ -499,27 +619,39 @@ export default function OnboardingPage() {
                         type="url"
                         placeholder="https://github.com/org/repo"
                         value={repoUrl}
-                        onChange={(e) => setRepoUrl(e.target.value)}
-                        disabled={!!file}
+                        onChange={(e) => {
+                          setRepoUrl(e.target.value);
+                          if (githubError) setGithubError("");
+                        }}
+                        disabled={!!file || isValidatingGithub}
                         className="w-full pl-9 pr-3 py-2 border border-slate-200 hover:border-slate-300 rounded-lg text-xs outline-none focus:border-black focus:ring-1 focus:ring-black transition-all duration-200 disabled:opacity-50"
                       />
                     </div>
                   </div>
+                  {githubError && (
+                    <p className="text-[10px] text-red-500 font-semibold mt-1">⚠️ {githubError}</p>
+                  )}
                 </div>
 
                 <div className="pt-4 border-t border-slate-100 flex justify-between">
                   <button
                     onClick={() => setStep(3)}
-                    className="premium-btn-secondary py-2 px-4 text-xs"
+                    disabled={isValidatingGithub}
+                    className="premium-btn-secondary py-2 px-4 text-xs disabled:opacity-50"
                   >
                     Back
                   </button>
                   <button
-                    onClick={startGeneration}
-                    className="premium-btn py-2 px-4 text-xs flex items-center gap-1.5 font-bold"
+                    onClick={handleCreateKnowledgeBase}
+                    disabled={isValidatingGithub}
+                    className="premium-btn py-2 px-4 text-xs flex items-center gap-1.5 font-bold disabled:opacity-50"
                   >
-                    Create Knowledge Base
-                    <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                    {isValidatingGithub ? "Validating Repository..." : "Create Knowledge Base"}
+                    {isValidatingGithub ? (
+                      <span className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                    )}
                   </button>
                 </div>
               </motion.div>

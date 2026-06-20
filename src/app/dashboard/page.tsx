@@ -104,7 +104,7 @@ export default function Dashboard() {
           }));
         }, 0);
       } catch (e) {
-        console.error("Error reading docs cache", e);
+        console.error("Error reading docs cache.");
       }
     }
     setTimeout(() => setLoading(false), 0);
@@ -119,7 +119,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-white">
+      <div className="flex min-h-[calc(100vh-6rem)] items-center justify-center bg-white">
         <div className="text-slate-400 text-sm animate-pulse">Loading dashboard...</div>
       </div>
     );

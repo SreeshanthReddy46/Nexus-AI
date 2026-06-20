@@ -223,7 +223,7 @@ export default function GraphExplorer() {
           }, 0);
         }
       } catch (e) {
-        console.error("Error updating graph from cache", e);
+        console.error("Error updating graph from cache.");
       }
     }
   }, []);
