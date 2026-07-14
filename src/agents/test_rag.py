@@ -35,5 +35,23 @@ class TestRAG(unittest.TestCase):
         self.assertTrue(len(results) > 0)
         self.assertTrue(any("route.ts" in r["source"] or "agent_engine.py" in r["source"] for r in results))
 
+    def test_agent_pipeline(self):
+        from agent_engine import process_query
+        response = process_query({
+            "query": "find contradictions",
+            "plan": "pro",
+            "role": "Admin",
+            "workspace": "NEXUS-HQ"
+        })
+        self.assertIn("Conflict Analysis", response["text"])
+        self.assertEqual(len(response["trace"]), 5)
+        # Check that Explore, Search, Reviewer, Cerifier, and Response agents are in trace
+        agents = [t["agent"] for t in response["trace"]]
+        self.assertIn("Explore Agent", agents)
+        self.assertIn("Search Agent", agents)
+        self.assertIn("Reviewer Agent", agents)
+        self.assertIn("Cerifier Agent", agents)
+        self.assertIn("Response Agent", agents)
+
 if __name__ == "__main__":
     unittest.main()
