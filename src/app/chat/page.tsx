@@ -230,86 +230,12 @@ export default function ChatWorkspace() {
   const [securityStatus, setSecurityStatus] = useState("Verifying Integrity...");
 
   const getReasoningSteps = (routedAgent: string, plan: string) => {
-    if (routedAgent === "Knowledge Agent") {
-      return [
-        "Knowledge Agent: Initializing document retrieval...",
-        "Knowledge Agent: Retrieving semantic chunks from index...",
-        "Knowledge Agent: Verifying factual consistency of retrieved segments...",
-        "Knowledge Agent: Formulating verified response..."
-      ];
-    }
-    
-    if (routedAgent === "Code Intelligence Agent") {
-      return [
-        "Code Intelligence Agent: Scanning repository directory structures...",
-        "Code Intelligence Agent: Parsing package manifests and configuration trees...",
-        "Code Intelligence Agent: Auditing codebase dependencies and safety controls...",
-        "Code Intelligence Agent: Compiling structural analysis reports..."
-      ];
-    }
-
-    if (routedAgent === "Memory Agent") {
-      return [
-        "Memory Agent: Querying session index and historical timeline...",
-        "Memory Agent: Aggregating previous searches and activity maps...",
-        "Memory Agent: Restoring system state and context parameters..."
-      ];
-    }
-    
-    if (routedAgent === "Report Generator") {
-      return [
-        "Report Generator: Querying database index stats...",
-        "Report Generator: Compiling compliance and metric records...",
-        "Report Generator: Running adversarial audit checks...",
-        "Report Generator: Rendering system status dashboard report..."
-      ];
-    }
-
-    if (routedAgent === "Report Agent") {
-      return [
-        "Report Agent: Compiling workspace metrics and files...",
-        "Report Agent: Drafting outlines and formatting report sections...",
-        "Report Agent: Writing document files to storage...",
-        "Report Agent: Finalizing exports for PDF, DOCX, and Markdown..."
-      ];
-    }
-
-    if (routedAgent === "Graph Intelligence Agent") {
-      return [
-        "Graph Intelligence Agent: Initiating graph search database traverse...",
-        "Graph Intelligence Agent: Analyzing relationship nodes and pathways...",
-        "Graph Intelligence Agent: Compiling visualization models...",
-        "Graph Intelligence Agent: Rendering interactive entity flowchart..."
-      ];
-    }
-
-    // Default Research Agent steps
-    const baseSteps = [
-      "Research Agent: Initializing neural retrieval pipeline...",
-      "Research Agent: Executing vector similarity search (k=5)...",
-      "Research Agent: Validating response for factual consistency..."
-    ];
-
-    if (plan === "free") return baseSteps;
-
-    if (plan === "starter") {
-      return [
-        ...baseSteps.slice(0, 2),
-        "Research Agent: Traversing relationship nodes in Knowledge Graph...",
-        "Research Agent: Applying standard reasoning chain...",
-        baseSteps[2]
-      ];
-    }
-
-    // Pro & Business
     return [
-      "Research Agent: Initializing high-depth neural pipeline...",
-      "Research Agent: Executing recursive vector similarity search (k=15)...",
-      "Research Agent: Traversing multi-hop relationship nodes in Knowledge Graph...",
-      "Research Agent: Re-ranking context based on structural centrality...",
-      "Research Agent: Applying advanced multi-agent reasoning chain...",
-      "Research Agent: Adversarial validation for hallucination detection...",
-      "Research Agent: Finalizing high-confidence synthesis..."
+      "Explore Agent: Initiating directory and workspace structure crawl...",
+      "Search Agent: Compiling TF-IDF matrices and indexing documents...",
+      "Reviewer Agent: Scanning for compliance rules and timeline conflicts...",
+      "Cerifier Agent: Verifying RBAC policies and reliability parameters...",
+      "Response Agent: Generating final citation formatting and Mermaid maps..."
     ];
   };
 
@@ -1038,7 +964,46 @@ export default function ChatWorkspace() {
                               </div>
                             )}
 
-                            {/* Trace Stack Toggle (Hidden for Privacy) */}
+                            {msg.trace && msg.trace.length > 0 && (
+                              <div className="w-full mt-4 pt-3 border-t border-slate-100">
+                                <button
+                                  onClick={() => setVisibleTraceMsgId(visibleTraceMsgId === msg.id ? null : msg.id)}
+                                  className="inline-flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-black border border-slate-200 shadow-sm px-3 py-1.5 rounded-lg font-bold transition-all text-[10px] cursor-pointer"
+                                >
+                                  <Cpu className="h-3.5 w-3.5" />
+                                  {visibleTraceMsgId === msg.id ? "Hide Agent Collaboration Trace" : "View Agent Collaboration Trace"}
+                                </button>
+
+                                <AnimatePresence>
+                                  {visibleTraceMsgId === msg.id && (
+                                    <motion.div
+                                      initial={{ height: 0, opacity: 0 }}
+                                      animate={{ height: "auto", opacity: 1 }}
+                                      exit={{ height: 0, opacity: 0 }}
+                                      className="mt-3 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 rounded-2xl border border-slate-700/60 p-5 overflow-hidden shadow-xl"
+                                    >
+                                      <div className="space-y-4">
+                                        {msg.trace.map((step, idx) => (
+                                          <div key={idx} className="flex gap-3 items-start text-left">
+                                            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-400 mt-0.5">
+                                              <span className="text-[9px] font-bold">{idx + 1}</span>
+                                            </div>
+                                            <div>
+                                              <h5 className="text-[10px] font-black uppercase tracking-wider text-indigo-300">
+                                                {step.agent}
+                                              </h5>
+                                              <p className="text-[11px] text-slate-300 mt-0.5 leading-normal font-medium">
+                                                {step.details}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </div>
+                            )}
 
                             {/* Report Downloads Section */}
                             {msg.downloads && (
