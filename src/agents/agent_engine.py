@@ -239,6 +239,23 @@ class CerifierAgent:
         return confidence, alert
 
 
+def sanitize_response_data(text):
+    if not text:
+        return text
+    # 1. Redact email patterns
+    text = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', '[REDACTED_EMAIL]', text)
+    # 2. Redact local OS paths and absolute username paths
+    text = re.sub(r'(?i)c:[\\/]users[\\/][a-zA-Z0-9_-]+[\\/]nexus-ai', '[WORKSPACE_ROOT]', text)
+    text = re.sub(r'(?i)c:[\\/]users[\\/][a-zA-Z0-9_-]+', '[USER_PROFILE_ROOT]', text)
+    # 3. Redact specific username and developer name tokens
+    text = re.sub(r'(?i)SreeshanthReddy46', '[REDACTED_NAME]', text)
+    text = re.sub(r'(?i)Sreeshanth', '[REDACTED_NAME]', text)
+    # 4. Redact backend script mentions in response text to hide python agent implementation details
+    text = re.sub(r'(?i)agent_engine\.py', '[AGENT_CORE]', text)
+    text = re.sub(r'(?i)test_rag\.py', '[AGENT_TESTS]', text)
+    return text
+
+
 class ResponseAgent:
     def __init__(self):
         pass
@@ -340,12 +357,22 @@ class ResponseAgent:
             }
         ]
 
+        # Apply zero-leak data and agent details sanitization on output
+        sanitized_text = sanitize_response_data(text)
+        sanitized_trace = []
+        for step in trace:
+            sanitized_trace.append({
+                "agent": step["agent"],
+                "status": step["status"],
+                "details": sanitize_response_data(step["details"])
+            })
+
         response = {
-            "text": text,
+            "text": sanitized_text,
             "confidence": f"{confidence}%",
             "sources": sources,
             "relations": entities,
-            "trace": trace,
+            "trace": sanitized_trace,
             "agent_type": "Research Agent"
         }
         
