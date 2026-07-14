@@ -181,11 +181,11 @@ export default function Documents() {
     // File security validation
     const lastDotIndex = filename.lastIndexOf('.');
     const ext = lastDotIndex !== -1 ? filename.substring(lastDotIndex).toLowerCase() : "";
-    const allowedExts = ['.pdf', '.docx', '.txt', '.md'];
+    const allowedExts = ['.pdf', '.docx', '.doc'];
     const blockedExts = ['.exe', '.bat', '.cmd', '.sh', '.msi', '.js', '.ts', '.py', '.php', '.jar', '.vbs', '.com'];
 
     if (blockedExts.includes(ext) || !allowedExts.includes(ext)) {
-      setPermissionError("File Blocked: Executable/Script elements detected. Only PDF, DOCX, TXT, and Markdown files are permitted.");
+      setPermissionError("File Blocked: Executable/Script elements detected. Only PDF, DOCX, and DOC (Word) files are permitted.");
       setTimeout(() => setPermissionError(""), 5000);
       return;
     }
@@ -402,7 +402,7 @@ export default function Documents() {
                 <UploadCloud className="h-12 w-12 text-slate-400 mb-4" />
                 <h4 className="text-sm font-bold text-slate-900">Drag & drop company files</h4>
                 <p className="text-xs text-slate-400 mt-1 max-w-[200px] mx-auto">
-                  Supports PDF, DOCX, TXT, or Markdown. Max file size: 50MB.
+                  Supports PDF, DOCX, or DOC. Max file size: 50MB.
                 </p>
                 <div className="mt-4">
                   <label className="premium-btn py-1.5 px-4 text-xs cursor-pointer">
@@ -411,7 +411,7 @@ export default function Documents() {
                       type="file"
                       className="hidden"
                       onChange={handleFileInput}
-                      accept=".pdf,.docx,.txt,.md"
+                      accept=".pdf,.docx,.doc"
                     />
                   </label>
                 </div>

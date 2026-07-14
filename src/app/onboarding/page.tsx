@@ -234,10 +234,10 @@ export default function OnboardingPage() {
   const handleFileSelect = (selectedFile: File) => {
     const lastDotIndex = selectedFile.name.lastIndexOf('.');
     const ext = lastDotIndex !== -1 ? selectedFile.name.substring(lastDotIndex).toLowerCase() : "";
-    const allowedExts = ['.pdf', '.docx', '.txt', '.md'];
+    const allowedExts = ['.pdf', '.docx', '.doc'];
     
     if (!allowedExts.includes(ext)) {
-      setGithubError("Invalid File: Only PDF, DOCX, TXT, and Markdown files are permitted.");
+      setGithubError("Invalid File: Only PDF, DOCX, and DOC (Word) files are permitted.");
       return;
     }
 
@@ -272,15 +272,15 @@ export default function OnboardingPage() {
   const handleCreateKnowledgeBase = async () => {
     if (repoUrl) {
       setGithubError("");
-      const cleanUrl = repoUrl.trim().replace(/https?:\/\/github\.com\//, "");
-      const parts = cleanUrl.split("/").filter(Boolean);
-      if (parts.length < 2) {
-        setGithubError("Please enter a valid format, e.g., owner/repo or https://github.com/owner/repo");
+      const trimmedUrl = repoUrl.trim();
+      const match = trimmedUrl.match(/^(https:\/\/github\.com\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_.-]+?))(?:\.git|\/)?$/);
+      if (!match) {
+        setGithubError("Invalid GitHub Link: Please enter a perfect GitHub repository link (e.g., https://github.com/owner/repo)");
         return;
       }
       
-      const owner = parts[0];
-      const repo = parts[1].replace(/\.git$/, "");
+      const owner = match[2];
+      const repo = match[3];
       
       setIsValidatingGithub(true);
       try {
@@ -584,13 +584,13 @@ export default function OnboardingPage() {
                   ) : (
                     <div className="space-y-2">
                       <UploadCloud className="h-8 w-8 text-slate-400 mb-2 mx-auto" />
-                      <p className="text-xs font-semibold text-slate-600">Drag & Drop files (PDF, DOCX, TXT, MD) here</p>
+                      <p className="text-xs font-semibold text-slate-600">Drag & Drop files (PDF, DOCX, DOC) here</p>
                       <p className="text-[10px] text-slate-400">or</p>
                       <label className="premium-btn py-1.5 px-3 text-[10px] cursor-pointer inline-block">
                         Browse Files
                         <input
                           type="file"
-                          accept=".pdf,.md,.txt,.docx"
+                          accept=".pdf,.docx,.doc"
                           className="hidden"
                           onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])}
                         />
