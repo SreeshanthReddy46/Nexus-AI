@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { decryptData } from "@/utils/crypto";
 import {
   Share2,
   Search,
@@ -173,7 +174,8 @@ export default function GraphExplorer() {
     const cachedDocs = localStorage.getItem("nexus_docs");
     if (cachedDocs) {
       try {
-        const docs = JSON.parse(cachedDocs);
+        const decrypted = decryptData(cachedDocs);
+        const docs = decrypted ? JSON.parse(decrypted) : [];
         // Find custom uploaded docs (not default ones)
         const customDocs = docs.filter((d: { source: string }) => d.source === "Local Upload");
 
