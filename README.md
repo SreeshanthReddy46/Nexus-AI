@@ -20,12 +20,12 @@ Nexus AI OS is a next-generation platform that centralizes fragmented organizati
 - [Why Nexus AI OS?](#-why-nexus-ai-os)
 - [Key Features](#-key-features)
 - [Architecture Overview](#-architecture-overview)
-- [Multi-Agent System](#-multi-agent-system)
+- [Multi-Agent Collaborative System](#-multi-agent-collaborative-system)
+- [Security, Encryption & Input Validation](#-security-encryption--input-validation)
 - [Getting Started](#-getting-started)
 - [Project Structure](#-project-structure)
 - [Tech Stack](#-tech-stack)
 - [Pricing & Access Tiers](#-pricing--access-tiers)
-- [Security & Compliance](#-security--compliance)
 - [Contributing](#-contributing)
 - [License](#-license)
 
@@ -37,11 +37,11 @@ Most organizations suffer from **knowledge fragmentation** — critical informat
 
 **Nexus solves this by:**
 
-1. **Indexing everything** — PDF, DOCX, Markdown, code repositories, and cloud storage are ingested and embedded into a high-dimensional vector space.
+1. **Indexing everything** — PDF and Word (.docx/.doc) documents are ingested and embedded into a high-dimensional vector space.
 2. **Building a knowledge graph** — Entities (people, teams, projects, servers) and their relationships are automatically extracted and mapped.
-3. **Reasoning with agents** — A chain of specialized AI agents plans, routes, retrieves, and fact-checks every answer before presenting it with full transparency.
+3. **Reasoning with agents** — A cooperative chain of specialized AI agents crawls, retrieves, audits, fact-checks, and synthesizes every answer.
 
-The result? **Instant, source-backed, hallucination-resistant answers** to any organizational question.
+The result? **Instant, source-backed, contradiction-aware answers** to any organizational question.
 
 ---
 
@@ -51,13 +51,12 @@ The result? **Instant, source-backed, hallucination-resistant answers** to any o
 |:---|:---|
 | 🔗 **Omnipresent Indexing** | Connect to PDF, DOCX, Notion, Confluence, GitHub, and Google Drive. Nexus indexes and structures everything. |
 | 🕸️ **Automatic Knowledge Graph** | Entities and structural relationships are extracted automatically, creating an explicit map of teams, projects, and tech. |
-| 🤖 **Multi-Agent Reasoning** | Queries route through an agent chain (Planner → Router → Graph → Critic) to aggregate verified answers. |
-| 🔒 **Enterprise Permissions** | Role-based access controls (RBAC) respect original document permissions. Admins maintain full visibility. |
-| 🔍 **Agent Execution Traces** | Inspect the step-by-step reasoning of every AI agent. Total transparency behind every citation. |
-| ⚡ **Instant API Gateway** | Expose your company's intelligence via secure webhooks and custom REST endpoints. |
+| 🤖 **Multi-Agent RAG** | Ingest and query workspace files using 5 collaborative backend agents working in tandem. |
+| 🔒 **Hardened Local Encryption** | Dynamic block-cipher obfuscation with multi-pass XOR keys and position-dependent salt shifts. |
+| 💻 **Collapsible Trace Panel** | A glassmorphic Trace Panel showing exactly how the agents collaborated to synthesize the answer. |
+| 📝 **Natively Built PDF Reports** | A compliant PDF layout compiler built directly in Python to export reports without external dependencies. |
+| 🛡️ **Strict GitHub Regex Checks** | Prevents malformed repository input during onboarding using high-fidelity pattern matching. |
 | 📊 **Interactive Dashboard** | Analytics panels for workspace health, document metrics, and team activity. |
-| 📝 **Report Generation** | Auto-generate weekly reports, executive summaries, and risk assessments in PDF, DOCX, and Markdown. |
-| 🎯 **Command Palette** | Quick-access command palette (Ctrl+K) for instant navigation and actions. |
 
 ---
 
@@ -74,108 +73,92 @@ Nexus uses a **Hybrid RAG (Retrieval-Augmented Generation)** architecture combin
 │  └────┬─────┘  └────┬─────┘  └────┬─────┘  └───────┬───────┘   │
 │       └──────────────┴─────────────┴────────────────┘           │
 │                          │  POST /api/agent                     │
-├──────────────────────────┼──────────────────────────────────────┤
-│                    NEXT.JS API LAYER                            │
-│              ┌───────────┴───────────┐                          │
-│              │  /api/agent/route.ts  │                          │
-│              │  (Spawns Python via   │                          │
-│              │   stdin/stdout bridge)│                          │
-│              └───────────┬───────────┘                          │
-├──────────────────────────┼──────────────────────────────────────┤
-│               PYTHON AGENT ENGINE                               │
-│  ┌───────────────────────┴──────────────────────────┐           │
-│  │              agent_engine.py                      │           │
-│  │  ┌──────────┐ ┌──────────┐ ┌────────────────┐    │           │
-│  │  │ Planner  │→│  Router  │→│ Domain Agents  │    │           │
-│  │  │  Agent   │ │  Agent   │ │ (Graph/Code/   │    │           │
-│  │  │          │ │          │ │  Memory/Report)│    │           │
-│  │  └──────────┘ └──────────┘ └───────┬────────┘    │           │
-│  │                                     │             │           │
-│  │                              ┌──────┴──────┐      │           │
-│  │                              │   Critic    │      │           │
-│  │                              │   Agent     │      │           │
-│  │                              └─────────────┘      │           │
-│  └───────────────────────────────────────────────────┘           │
-└─────────────────────────────────────────────────────────────────┘
+│ ├────────────────────────┼──────────────────────────────────────┤
+│ │                    NEXT.JS API LAYER                            │
+│ │              ┌───────────┴───────────┐                          │
+│ │              │  /api/agent/route.ts  │                          │
+│ │              │  (Spawns Python via   │                          │
+│ │              │   stdin/stdout bridge)│                          │
+│ │              └───────────┬───────────┘                          │
+│ ├────────────────────────┼──────────────────────────────────────┤
+│ │               PYTHON AGENT ENGINE                               │
+│ │  ┌───────────────────────┴──────────────────────────┐           │
+│ │  │              agent_engine.py                      │           │
+│ │  │  ┌────────────┐ ┌────────────┐ ┌──────────────┐  │           │
+│ │  │  │  Explore   │→│   Search   │→│   Reviewer   │  │           │
+│ │  │  │   Agent    │ │   Agent    │ │    Agent     │  │           │
+│ │  │  └────────────┘ └────────────┘ └──────┬───────┘  │           │
+│ │  │                                       │          │           │
+│ │  │                                ┌──────┴──────┐   │           │
+│ │  │                                │  Cerifier   │   │           │
+│ │  │                                │   Agent     │   │           │
+│ │  │                                └──────┬──────┘   │           │
+│ │  │                                       │          │           │
+│ │  │                                ┌──────┴──────┐   │           │
+│ │  │                                │  Response   │   │           │
+│ │  │                                │   Agent     │   │           │
+│ │  │                                └─────────────┘   │           │
+│ │  └──────────────────────────────────────────────────┘           │
+│ └─────────────────────────────────────────────────────────────────┘
 ```
 
 ### How a Query Flows
 
-1. **User submits a question** in the Chat workspace (e.g., _"Why is Project Phoenix delayed?"_).
+1. **User submits a question** in the Chat workspace (e.g., _"find contradictions"_).
 2. **Next.js API route** receives the POST request and spawns the Python agent engine as a child process, passing the query via `stdin`.
-3. **Planner Agent** deconstructs the query into sub-tasks and identifies target entities.
-4. **Router Agent** directs sub-tasks to the appropriate domain agents (Graph, Vector, Code, Memory).
-5. **Domain Agents** retrieve and synthesize information from the knowledge graph and document embeddings.
-6. **Critic Agent** validates the response against source documents to eliminate hallucinations.
-7. **Response is returned** as structured JSON via `stdout`, including the answer, confidence score, source citations, entity relations, and the full agent execution trace.
+3. **Explore Agent** maps directory structures and traverses technology scopes.
+4. **Search Agent** executes a sliding-window file crawl and generates a TF-IDF cosine-similarity retrieval.
+5. **Reviewer Agent** audits the retrieved text segments for policy or schedule contradictions.
+6. **Cerifier Agent** validates role boundaries (Viewer RBAC) and assigns a data reliability score.
+7. **Response Agent** synthesizes the final text answer, builds a dynamic Mermaid flowchart, and packages the download files.
+8. **Structured JSON** is printed via `stdout` containing the text, citations, Mermaid nodes, and the collaborative trace.
 
 ---
 
-## 🤖 Multi-Agent System
+## 🤖 Multi-Agent Collaborative System
 
-Nexus uses **6 specialized agent types** that are autonomously routed based on the query intent:
+Nexus uses a pipeline of **5 specialized agent types** that execute sequentially during every workspace RAG query:
 
-### Research Agent
-> Handles general knowledge queries by combining vector search with graph traversal.
-- _"Why is Project Phoenix delayed?"_
-- _"Who owns the payment service?"_
-- _"Explain our deployment process."_
+### 1. Explore Agent
+> Analyzes the local workspace and charts the system layout. Maps file and directory nodes dynamically.
 
-### Graph Intelligence Agent
-> Traverses the knowledge graph to answer relationship and dependency queries. Returns Mermaid diagrams.
-- _"What are Project Phoenix's dependencies?"_
-- _"Which teams use this system?"_
-- _"Who is responsible for the checkout platform?"_
+### 2. Search Agent (RAG Retriever)
+> Builds a TF-IDF index across mock files and crawled code files. Executes cosine similarity calculations to retrieve the top 10 relevant context chunks.
 
-### Code Intelligence Agent
-> Analyzes the codebase structure, generates documentation, and performs security audits.
-- _"Explain this codebase."_
-- _"Generate documentation."_
-- _"Find security risks."_
+### 3. Reviewer Agent
+> Audits the retrieved text segments for mismatches and conflicts (e.g. logging archiving mismatches or Project Phoenix timeline delays).
 
-### Memory Agent
-> Restores session context and retrieves historical user activity.
-- _"What reports did I create last week?"_
-- _"Show my recent searches."_
-- _"Continue previous analysis."_
+### 4. Cerifier Agent
+> Evaluates user roles against RBAC permission boundaries (warns and blocks modification commands for the `Viewer` role) and computes a data reliability score.
 
-### Report Agent
-> Auto-generates structured reports in PDF, DOCX, and Markdown formats.
-- _"Generate a weekly report."_
-- _"Create an executive summary."_
-- _"Write a project status report."_
-
-### Identity & RBAC Agent
-> Provides role-based access audits and user profile information.
-- _"Who am I?"_
-- _"What are my permissions?"_
+### 5. Response Agent
+> Merges agent outputs, draws dynamic Mermaid graphs representing structural dependencies, coordinates PDF/DOCX downloads, and packages the execution logs.
 
 ---
 
-## 🛠️ Hardened Security & Technical Specs
+## 🔒 Security, Encryption & Input Validation
 
-Nexus AI OS has been audited and updated to enforce premium enterprise security, strict input validations, and advanced visual formatting:
+Nexus enforces strict, enterprise-ready compliance layers across the frontend and backend:
 
-### 1. Zero-Leak Console Sanitization
-To prevent any data exposure to developers, server operators, or users inspecting logs:
-- **Server-Side API Guard**: Next.js route handlers ([route.ts](file:///c:/Users/hp/nexus-ai/src/app/api/agent/route.ts)) remove all raw standard error outputs (`stderrData`), raw execution dumps (`stdoutData`), and exception details from console errors.
-- **Client-Side DevTools Protection**: All client-side pages and components (including `Navbar.tsx`, `SideRays.tsx`, `graph/page.tsx`, `dashboard/page.tsx`, and `chat/page.tsx`) suppress stack traces and log details, printing only generic errors.
-- **Crypto & Key Protection**: Encryption failures ([crypto.ts](file:///c:/Users/hp/nexus-ai/src/utils/crypto.ts)) log a static message without printing error arguments, preventing key extraction from memory dumps.
+### 1. High-Security Cryptographical Mixing Engine
+All user data and credentials stored client-side in `localStorage` or `sessionStorage` are encrypted using a customized mixing cipher:
+* **Diffusion Layer**: Char values are XORed with a dynamically offset index from a 256-bit encryption key.
+* **Salt Shifting**: Every character is shifted by a positional constant (`i * 17`) to ensure duplicate plaintext strings yield completely unique ciphertext blocks.
+* **Base64 Packaging**: Formats mixed bytes safely for storage transport.
 
-### 2. Live GitHub Repository Verification
-During the workspace onboarding wizard:
-- When a user inputs a repository name or URL, the platform validates format constraints.
-- The browser client executes a verification ping to `https://api.github.com/repos/{owner}/{repo}` to confirm existence and accessibility before proceeding. Invalid or private repositories present warning details to correct input names.
+### 2. Strict Onboarding URL Validations
+The GitHub connection input enforces strict format compliance using a regex block parser:
+`/^(https:\/\/github\.com\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_.-]+?))(?:\.git|\/)?$/`
+It completely prevents invalid formats or third-party domains, and makes verification pings to `api.github.com` to check repository availability.
 
-### 3. Compliant Binary PDF Report Engine
-Instead of writing plain text to a `.pdf` file format:
-- A custom binary layout compiler (`SimplePDFWriter`) has been written natively in Python without external dependencies inside [agent_engine.py](file:///c:/Users/hp/nexus-ai/src/agents/agent_engine.py).
-- It writes compliant PDF byte arrays (handling catalogs, page pointers, Helvetica-Bold and Helvetica font sizes, stream lengths, cross-reference tables, and file trailers).
-- Generates viewable, wrap-aligned PDFs, DOCX files, and Markdown pages stored under `public/reports/` (fully ignored by git to keep commits clean).
+### 3. PDF & Word Document Restrictions
+To prevent server scripting vulnerabilities and enforce indexing standards, file uploads in the Document Center and Onboarding screens are restricted:
+* **Allowed Extensions**: strictly `.pdf`, `.docx`, and `.doc`.
+* **Blocked Extensions**: `.txt`, `.md`, `.exe`, `.js`, `.py`, `.sh`, `.jar`, etc.
 
-### 4. Premium Scan Upload Animations
-- Supporting **PDF, DOCX, TXT, and Markdown** uploads in the Document Center and Onboarding dropzone.
-- Featuring an orbital check loader, pulsing check indicators, a horizontal scanning laser line, and dynamic labels that read the exact extension to display format-specific parsing status (e.g., *“Reading DOCX stream...”*, *“Reading Markdown stream...”*).
+### 4. Zero-Leak Console Sanitization
+* Spawning subprocess channels in Next.js suppress `stderr` dumps and trace metrics from error objects.
+* Encryption failure paths log static generic messages to avoid key extraction from memory dumps.
 
 ---
 
@@ -208,20 +191,7 @@ Instead of writing plain text to a `.pdf` file format:
    ```
 
 4. **Open the platform:**
-
    Navigate to [http://localhost:3000](http://localhost:3000) in your browser.
-
-### First-Time User Flow
-
-```
-Landing Page → Sign Up → Onboarding → Select Plan → Chat Workspace
-```
-
-1. Visit the landing page and click **Get Started**.
-2. Create an account on the login/signup page.
-3. Complete the onboarding wizard to configure your workspace.
-4. Select an intelligence plan (Free tier available).
-5. Start asking questions in the AI chat workspace.
 
 ---
 
@@ -229,61 +199,36 @@ Landing Page → Sign Up → Onboarding → Select Plan → Chat Workspace
 
 ```
 nexus-ai/
-├── public/                        # Static assets & generated reports
+├── public/                        # Static assets & reports
 │   └── reports/                   # Auto-generated PDF/DOCX/MD reports
 │
 ├── src/
 │   ├── agents/
-│   │   └── agent_engine.py        # 🧠 Core Python multi-agent reasoning engine
+│   │   ├── agent_engine.py        # 🧠 Unified Python multi-agent RAG engine
+│   │   └── test_rag.py            # 🧪 Python unit tests for Search and Pipeline
 │   │
 │   ├── app/
 │   │   ├── api/
 │   │   │   └── agent/
-│   │   │       └── route.ts       # API bridge: spawns Python agent via stdin/stdout
+│   │   │       └── route.ts       # Next.js route: Spawns Python agents via stdin/stdout
 │   │   │
 │   │   ├── chat/
-│   │   │   └── page.tsx           # 💬 Core AI chat workspace with trace logic
-│   │   │
-│   │   ├── company/
-│   │   │   └── page.tsx           # 🏢 Company profile & workspace settings
-│   │   │
-│   │   ├── dashboard/
-│   │   │   └── page.tsx           # 📊 Analytics dashboard with charts
+│   │   │   └── page.tsx           # 💬 Chat workspace with interactive Trace panel
 │   │   │
 │   │   ├── documents/
-│   │   │   └── page.tsx           # 📄 Document indexing & management
+│   │   │   └── page.tsx           # 📄 Document management with PDF/Word restrictions
 │   │   │
 │   │   ├── graph/
-│   │   │   └── page.tsx           # 🕸️ Force-directed knowledge graph visualization
-│   │   │
-│   │   ├── login/
-│   │   │   └── page.tsx           # 🔑 Authentication (login/signup)
+│   │   │   └── page.tsx           # 🕸️ Force-directed knowledge graph
 │   │   │
 │   │   ├── onboarding/
-│   │   │   └── page.tsx           # 🎯 First-time user onboarding wizard
+│   │   │   └── page.tsx           # 🎯 Onboarding setup with GitHub regex checks
 │   │   │
-│   │   ├── plans/
-│   │   │   └── page.tsx           # 💳 Intelligence tier selection
-│   │   │
-│   │   ├── resources/
-│   │   │   └── page.tsx           # 📚 Help center & resources
-│   │   │
-│   │   ├── globals.css            # Global styles & design tokens
-│   │   ├── layout.tsx             # Root layout with metadata & fonts
-│   │   └── page.tsx               # 🏠 Landing page (hero, demo, pricing, FAQ)
-│   │
-│   ├── components/
-│   │   ├── CommandPalette.tsx      # ⌨️ Ctrl+K command palette
-│   │   ├── InteractiveBackground.tsx  # ✨ Animated particle background
-│   │   └── Navbar.tsx             # 🧭 Global navigation bar
+│   │   └── login/
+│   │       └── page.tsx           # 🔑 Logins and registration
 │   │
 │   └── utils/
-│       └── crypto.ts              # 🔐 Client-side password hashing utilities
-│
-├── package.json                   # Dependencies & scripts
-├── next.config.ts                 # Next.js configuration
-├── tsconfig.json                  # TypeScript configuration
-└── postcss.config.mjs             # PostCSS (Tailwind) configuration
+│       └── crypto.ts              # 🔐 Dynamic block-cipher cryptographic utilities
 ```
 
 ---
@@ -291,70 +236,32 @@ nexus-ai/
 ## 🛠 Tech Stack
 
 ### Frontend
-| Technology | Purpose |
-|:---|:---|
-| **Next.js 16** | App Router framework with React Server Components |
-| **React 19** | UI component library |
-| **TypeScript 5** | Type-safe development |
-| **Tailwind CSS 4** | Utility-first styling |
-| **Framer Motion** | Premium animations, scroll reveals, and micro-interactions |
-| **Lucide React** | Consistent iconography |
-| **Recharts** | Dashboard data visualizations |
+* **Next.js 16**: App Router framework with React Server Components.
+* **React 19** & **TypeScript 5**: UI and type-safe components.
+* **Tailwind CSS 4**: Modern glassmorphic styles.
+* **Framer Motion**: Micro-animations and sliding trace transitions.
 
 ### Backend
-| Technology | Purpose |
-|:---|:---|
-| **Next.js API Routes** | Serverless API endpoints (TypeScript) |
-| **Python 3.10+** | Multi-agent reasoning engine |
-| **stdin/stdout Bridge** | Secure IPC between Node.js and Python |
-
-### Design Principles
-- **Glassmorphism** — Frosted glass cards and layered transparency
-- **Parallax scrolling** — Depth via scroll-linked floating elements
-- **Micro-animations** — Spring-based transitions on every interaction
-- **Responsive** — Mobile-first layouts across all pages
+* **Python 3.10+**: Multi-agent RAG pipeline using NumPy for vectorized searches.
+* **Next.js subprocess IPC**: Spawns Python modules safely using process streams.
 
 ---
 
 ## 💳 Pricing & Access Tiers
 
-Nexus AI OS scales with your organization. Users select a plan before accessing the chat workspace.
-
 | Feature | Free | Starter | Pro ⭐ | Business |
 |:---|:---:|:---:|:---:|:---:|
 | **Price** | ₹0/mo | ₹999/mo | ₹4,999/mo | ₹14,999+/mo |
-| **Documents** | 50 | 1,000 | 10,000 | Unlimited |
+| **Documents** | 5 | 10 | 10,000 | Unlimited |
 | **Queries** | 100/mo | Unlimited | Unlimited | Unlimited |
-| **Agent Support** | Standard RAG | Advanced RAG | Multi-Agent Reasoning | Custom Fine-tuning |
-| **Integrations** | Manual Upload | Notion & Drive | Confluence & GitHub | Dedicated VPC |
-| **Trace Depth** | Basic | Standard | Expandable Stack | Full Audit Log |
-| **API Access** | — | Standard | Priority | Custom SLA |
-| **SSO** | — | — | — | ✅ |
-
----
-
-## 🔒 Security & Compliance
-
-Nexus is built for the enterprise with security at every layer:
-
-- **Encryption at Rest** — AES-256 encryption for all stored data
-- **Encryption in Transit** — TLS 1.3 for all network communications
-- **Role-Based Access Control (RBAC)** — AI agents only access documents the user is authorized to see
-- **Password Security** — Credentials are hashed using bcrypt; never stored in plain text
-- **Process Isolation** — Python agent engine runs in a sandboxed child process with stdin/stdout-only communication
-- **Graph ACLs** — Access control lists on the knowledge graph enforce namespace-level read/write boundaries
+| **Agent Support** | Explore & Search | Audit & Review | Collapsible Trace UI | Dedicated VPC |
+| **Allowed Files** | PDF/Word | PDF/Word | PDF/Word | PDF/Word |
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Here's how to get started:
-
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
+Contributions are welcome! Please fork this repository, create your feature branch, commit your changes, and open a Pull Request.
 
 ---
 
