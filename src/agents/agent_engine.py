@@ -3,6 +3,126 @@ import json
 import os
 import re
 import datetime
+import math
+import numpy as np
+
+# Internal text models of mock files
+MOCK_DOCUMENTS = {
+    "checkout-api-v2.md": (
+        "Title: Checkout API Specifications\n"
+        "The Checkout Platform Team manages the core Payment Service. Sarah Jenkins is the technical lead.\n"
+        "Security Rules: All billing endpoints require OAuth2 token validation. Clients must submit an Idempotency-Key header on transaction retries to block duplicate charges.\n"
+        "Status: The Payment Service API integration is currently delayed by 2 weeks because of legacy gateway mismatches."
+    ),
+    "phoenix-sprint-summary.docx": (
+        "Title: Project Phoenix Sprint Summary\n"
+        "Project Phoenix is our next-gen client-facing checkout system, led by PM Marcus Chen.\n"
+        "Current sprint: The frontend development team is fully blocked on the billing view implementation.\n"
+        "Timeline: Sprints are behind schedule by 2 weeks because they are waiting on finalized specifications from the core checkout platform team."
+    ),
+    "ci-cd-playbook.txt": (
+        "Title: CI/CD Deployment Playbook\n"
+        "The DevOps Team maintains deployment pipelines. All staging builds deploy to AWS ECS automatically via GitHub Actions.\n"
+        "Release rules: Deployments run through a 10% canary traffic shifting release policy.\n"
+        "Logging: ECS container task logs are configured with a strict 30-day retention policy to optimize cloud storage costs."
+    ),
+    "infrastructure-rules.md": (
+        "Title: Infrastructure Security Rules\n"
+        "All production and staging environments must adhere to SOC2 and compliance audits.\n"
+        "Encryption: Enforces AES-256 database encryption at rest and TLS 1.3 in transit.\n"
+        "Auditing: Mandates that all network activity and VPC flow logs must be archived in immutable storage for a 365-day retention period."
+    )
+}
+
+class SearchAgent:
+    def __init__(self):
+        self.chunks = []
+        self._initialize_index()
+
+    def _clean_text(self, text):
+        text = re.sub(r'[^a-zA-Z0-9\s]', ' ', text.lower())
+        return text.split()
+
+    def _initialize_index(self):
+        # 1. Load mock documents
+        for name, content in MOCK_DOCUMENTS.items():
+            paragraphs = content.split("\n")
+            for p in paragraphs:
+                if p.strip():
+                    self.chunks.append({"source": name, "text": p})
+                    
+        # 2. Crawl codebase src directory
+        src_dir = os.path.join(os.getcwd(), "src")
+        if os.path.exists(src_dir):
+            for root, dirs, files in os.walk(src_dir):
+                # Skip next, modules, and agents (to avoid duplicate mock RAG texts)
+                dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ["node_modules", "agents"]]
+                for f in files:
+                    if f.endswith(('.ts', '.tsx', '.py', '.css')):
+                        filepath = os.path.join(root, f)
+                        try:
+                            with open(filepath, "r", encoding="utf-8") as file:
+                                code = file.read()
+                                rel_path = os.path.relpath(filepath, os.getcwd()).replace('\\', '/')
+                                # Chunk code by 350-character blocks with 50 character overlap
+                                for i in range(0, len(code), 350):
+                                    chunk = code[i:i+400]
+                                    self.chunks.append({"source": rel_path, "text": chunk})
+                        except Exception:
+                            pass
+                            
+        # 3. Build TF-IDF Vocabulary
+        self.vocab = {}
+        self.df = {}
+        for c in self.chunks:
+            words = set(self._clean_text(c["text"]))
+            for w in words:
+                if w not in self.vocab:
+                    self.vocab[w] = len(self.vocab)
+                self.df[w] = self.df.get(w, 0) + 1
+                
+        self.num_docs = len(self.chunks)
+        # Create TF-IDF document vectors
+        self.doc_vectors = []
+        for c in self.chunks:
+            words = self._clean_text(c["text"])
+            vec = np.zeros(len(self.vocab)) if len(self.vocab) > 0 else np.array([])
+            for w in words:
+                if w in self.vocab:
+                    tf = words.count(w) / len(words)
+                    idf = math.log(1 + self.num_docs / (1 + self.df[w]))
+                    vec[self.vocab[w]] = tf * idf
+            self.doc_vectors.append(vec)
+
+    def search(self, query, top_k=5):
+        query_words = self._clean_text(query)
+        q_vec = np.zeros(len(self.vocab)) if len(self.vocab) > 0 else np.array([])
+        for w in query_words:
+            if w in self.vocab:
+                tf = query_words.count(w) / len(query_words)
+                idf = math.log(1 + self.num_docs / (1 + self.df[w]))
+                q_vec[self.vocab[w]] = tf * idf
+                
+        q_norm = np.linalg.norm(q_vec)
+        if q_norm == 0 or len(self.vocab) == 0:
+            return []
+            
+        results = []
+        for i, doc_vec in enumerate(self.doc_vectors):
+            doc_norm = np.linalg.norm(doc_vec)
+            if doc_norm == 0:
+                continue
+            score = np.dot(q_vec, doc_vec) / (q_norm * doc_norm)
+            if score > 0.02:  # Similarity threshold
+                results.append({
+                    "source": self.chunks[i]["source"],
+                    "text": self.chunks[i]["text"],
+                    "score": float(score)
+                })
+        # Sort by score descending
+        results.sort(key=lambda x: x["score"], reverse=True)
+        return results[:top_k]
+
 
 class SimplePDFWriter:
     def __init__(self):
