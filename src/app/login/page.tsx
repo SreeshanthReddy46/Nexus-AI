@@ -111,9 +111,9 @@ function LoginContent() {
     setTimeout(() => {
       const activeWorkspace = workspaceId.trim() ? workspaceId.trim().toUpperCase() : "NEXUS-HQ";
       const authData = JSON.stringify({
-        userId: "usr-google-sreeshanth",
-        email: "google.user@nexus-ai.com",
-        name: "Sreeshanth",
+        userId: "usr-google-enterprise",
+        email: "enterprise.user@company.com",
+        name: "Enterprise Member",
         role: selectedRole,
         workspace: activeWorkspace
       });

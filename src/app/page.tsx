@@ -216,21 +216,10 @@ export default function Home() {
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-transparent pt-20 pb-28 md:pt-32 md:pb-40 z-10">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-800 subtle-border mb-6">
-              <Sparkles className="h-3 w-3 text-black" />
-              Introducing Nexus AI OS v1.0
-            </span>
-          </motion.div>
-
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
+            transition={{ duration: 0.6 }}
             className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl md:text-6xl max-w-4xl mx-auto leading-none"
           >
             Your Company&apos;s AI Brain
@@ -667,9 +656,6 @@ export default function Home() {
                 style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}
               >
                 <div className="premium-card border-transparent flex flex-col justify-between bg-white/90 backdrop-blur-md h-full rounded-[24px] relative">
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full shadow-sm z-30">
-                    Most Popular
-                  </span>
                   <div>
                     <h3 className="text-lg font-bold">Pro</h3>
                     <p className="text-sm text-slate-400 mt-1">For advanced intelligence</p>

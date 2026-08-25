@@ -222,10 +222,6 @@ export default function DocsPage() {
       {/* Hero Header */}
       <section className="relative overflow-hidden bg-slate-50 border-b border-slate-200 py-16 md:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-800 border border-slate-200 mb-4">
-            <BookOpen className="h-3.5 w-3.5 text-black" />
-            Product Documentation
-          </span>
           <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
             Documentation Center
           </h1>
@@ -339,7 +335,7 @@ export default function DocsPage() {
               {/* Title & Metadata */}
               <div className="space-y-4 mb-8">
                 <div className="flex items-center gap-3">
-                  <span className="bg-slate-100 text-slate-700 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full border border-slate-200">
+                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
                     {activeArticle.section}
                   </span>
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{activeArticle.readTime}</span>

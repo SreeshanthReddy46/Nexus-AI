@@ -54,18 +54,6 @@ const messageVariants: Variants = {
   }
 };
 
-const securityBadgeVariants: Variants = {
-  initial: { opacity: 0, scale: 0.8 },
-  animate: {
-    opacity: 1,
-    scale: 1,
-    transition: {
-      duration: 0.3,
-      ease: "easeOut"
-    }
-  }
-};
-
 interface Message {
   id: string;
   sender: "user" | "nexus";
@@ -216,7 +204,7 @@ const PRE_DEFINED_ANSWERS: { [key: string]: Omit<Message, "id" | "sender"> } = {
 
 export default function ChatWorkspace() {
   const router = useRouter();
-  const [userName, setUserName] = useState("Sreeshanth");
+  const [userName, setUserName] = useState("Workspace User");
   const [userRole, setUserRole] = useState("Viewer");
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState("");
@@ -293,10 +281,11 @@ export default function ChatWorkspace() {
       }
 
       if (!plan) {
-        router.push("/billing");
-        return;
+        localStorage.setItem("nexus_plan", "free");
+        setCurrentPlan("free");
+      } else {
+        setCurrentPlan(plan);
       }
-      setCurrentPlan(plan);
 
       // Auto-open agents modal if query param is present
       const urlParams = new URLSearchParams(window.location.search);
@@ -502,6 +491,7 @@ export default function ChatWorkspace() {
     }
 
     // Call python-backed Next.js API Route immediately
+    const connectedRepo = localStorage.getItem("nexus_connected_repo") || "";
     fetch("/api/agent", {
       method: "POST",
       headers: {
@@ -514,7 +504,8 @@ export default function ChatWorkspace() {
         role: userRole,
         email: userEmail,
         userId: userId,
-        workspace: userWorkspace
+        workspace: userWorkspace,
+        connectedRepo: connectedRepo
       })
     })
       .then(res => res.json())
@@ -819,36 +810,22 @@ export default function ChatWorkspace() {
             </div>
             <div className="h-4 w-px bg-slate-200" />
             <div className="flex items-center gap-2">
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm border ${currentPlan === 'pro' ? 'bg-orange-500 text-white border-orange-400' :
-                  currentPlan === 'business' ? 'bg-indigo-600 text-white border-indigo-500' :
-                    currentPlan === 'starter' ? 'bg-amber-400 text-black border-amber-300' :
-                      'bg-slate-200 text-slate-600 border-slate-300'
-                }`}>
+              <span className="text-[11px] font-semibold text-slate-700 capitalize">
                 {currentPlan} Intelligence
               </span>
             </div>
             <div className="h-4 w-px bg-slate-200" />
             <div className="flex items-center gap-2">
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm border ${
-                userRole === 'Admin' ? 'bg-red-500 text-white border-red-400' :
-                userRole === 'Manager' ? 'bg-blue-600 text-white border-blue-500' :
-                userRole === 'Member' ? 'bg-indigo-500 text-white border-indigo-400' :
-                'bg-slate-200 text-slate-600 border-slate-300'
-              }`}>
+              <span className="text-[11px] font-semibold text-slate-700">
                 {userRole} Role
               </span>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <motion.span
-              variants={securityBadgeVariants}
-              initial="initial"
-              animate="animate"
-              className="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-[9px] font-bold text-slate-500 flex items-center gap-1"
-            >
+            <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
               <Lock className="h-2.5 w-2.5" />
-              E2E ENCRYPTED
-            </motion.span>
+              E2E Encrypted
+            </span>
           </div>
         </div>
 
@@ -1081,39 +1058,6 @@ export default function ChatWorkspace() {
         {/* Input prompt area */}
         <div className="p-6 bg-gradient-to-t from-white via-white/95 to-transparent z-10 border-t border-slate-100">
           <div className="max-w-3xl mx-auto space-y-4">
-            
-            {/* Autonomous Routing Indicator */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-4 py-2 text-[10px] font-bold text-slate-700 bg-white border border-slate-200 rounded-full shadow-sm uppercase tracking-widest">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                </span>
-                <span>Autonomous Routing</span>
-              </div>
-
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-[0.1em] border ${
-                currentPlan === "pro" || currentPlan === "business" 
-                  ? "bg-black text-white border-black" 
-                  : currentPlan === "starter" 
-                    ? "bg-amber-50 text-amber-600 border-amber-200" 
-                    : "bg-slate-50 text-slate-500 border-slate-200"
-              }`}>
-                {currentPlan === "free" && <RefreshCw className="h-3 w-3" />}
-                {currentPlan === "starter" && <TrendingUp className="h-3 w-3" />}
-                {(currentPlan === "pro" || currentPlan === "business") && <Activity className="h-3 w-3 text-emerald-400" />}
-                {currentPlan} Engine
-              </div>
-            </div>
-
-            {/* Privacy/Security Info Ticker */}
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-100 text-[9px] font-bold text-slate-400 uppercase tracking-widest overflow-hidden whitespace-nowrap">
-              <ShieldCheck className="h-3 w-3 text-emerald-500 shrink-0" />
-              <span>Session Isolation Active</span>
-              <span className="h-1 w-1 rounded-full bg-slate-300" />
-              <span>Private Node Routing</span>
-            </div>
-
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -1139,17 +1083,6 @@ export default function ChatWorkspace() {
                 <Send className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </motion.button>
             </motion.div>
-
-            <div className="flex items-center justify-center gap-4 text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] pt-1">
-              <div className="flex items-center gap-1.5">
-                <span className="h-1 w-1 rounded-full bg-emerald-500" />
-                Secure Retrieval Verified
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="h-1 w-1 rounded-full bg-emerald-500" />
-                Zero Hallucination Audit
-              </div>
-            </div>
           </div>
         </div>
       </div>

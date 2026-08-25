@@ -10,7 +10,9 @@ export async function POST(request: Request) {
     const scriptPath = path.join(process.cwd(), "src", "agents", "agent_engine.py");
     
     return new Promise<Response>((resolve) => {
-      const pyProcess = spawn("python", [scriptPath]);
+      const pyProcess = spawn("python", [scriptPath], {
+        env: { ...process.env, PYTHONIOENCODING: "utf-8" }
+      });
       
       let stdoutData = "";
       let stderrData = "";
@@ -27,6 +29,20 @@ export async function POST(request: Request) {
         stderrData += data.toString();
       });
       
+      pyProcess.on("error", (err) => {
+        console.error("Failed to start Python process:", err);
+        resolve(NextResponse.json({
+          text: "Agent reasoning engine is temporarily unavailable.",
+          confidence: "0%",
+          sources: [],
+          relations: [],
+          trace: [
+            { agent: "System Bridge", status: "warning", details: "Failed to spawn reasoning agent process." }
+          ],
+          agent_type: "Research Agent"
+        }));
+      });
+
       pyProcess.on("close", (code) => {
         if (code !== 0) {
           console.error(`Python script exited with code ${code}.`);

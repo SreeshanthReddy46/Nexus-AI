@@ -24,7 +24,7 @@ import {
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [userName, setUserName] = useState("Sreeshanth");
+  const [userName, setUserName] = useState("Workspace User");
 
   // Step 1 State: Role Selection
   const [selectedRole, setSelectedRole] = useState("");
@@ -226,6 +226,9 @@ export default function OnboardingPage() {
     localStorage.setItem("nexus_docs", encryptedDocs);
     localStorage.setItem("nexus_onboarded", "true");
     localStorage.setItem("nexus_plan", "free"); // Initialize default plan
+    if (repoUrl) {
+      localStorage.setItem("nexus_connected_repo", repoUrl);
+    }
 
     // Redirect directly to the AI chat
     router.push("/chat");

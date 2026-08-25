@@ -145,18 +145,9 @@ export default function PlanSelection() {
         </div>
 
         <div className="text-center mb-16">
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-900 text-xs font-bold mb-4"
-          >
-            <Activity className="h-4 w-4 text-emerald-500" />
-            Nexus AI OS Intelligence Selection
-          </motion.div>
           <motion.h1
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
             className="text-4xl font-extrabold text-slate-900 sm:text-5xl tracking-tight"
           >
             Select Your Intelligence Scale
@@ -164,7 +155,7 @@ export default function PlanSelection() {
           <motion.p
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            transition={{ delay: 0.1 }}
             className="mt-4 text-xl text-slate-500 max-w-2xl mx-auto"
           >
             Choose the processing power and agent depth required for your organizational memory.
@@ -195,19 +186,6 @@ export default function PlanSelection() {
                       : `border-transparent ${plan.color}`
                   } ${selectedPlan === plan.id ? "opacity-70 scale-[0.98]" : ""}`}
                 >
-                  {plan.popular && (
-                    <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-lg">
-                      Recommended
-                    </span>
-                  )}
-
-                  {currentPlan === plan.id && (
-                    <span className="absolute -top-4 left-6 bg-emerald-500 text-white text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
-                      <Check className="h-3 w-3" />
-                      Active Plan
-                    </span>
-                  )}
-                  
                   <div className="flex justify-between items-start mb-6">
                     <div className={`p-3 rounded-2xl bg-white shadow-sm border ${plan.border}`}>
                       {plan.icon}

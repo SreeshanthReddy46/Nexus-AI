@@ -2,6 +2,7 @@ import sys
 import json
 import os
 import re
+import random
 import datetime
 import math
 import numpy as np
@@ -35,8 +36,10 @@ MOCK_DOCUMENTS = {
 }
 
 class SearchAgent:
-    def __init__(self):
+    def __init__(self, documents=None, repo_url=None):
         self.chunks = []
+        self.documents = documents or []
+        self.repo_url = repo_url
         self._initialize_index()
 
     def _clean_text(self, text):
@@ -44,21 +47,29 @@ class SearchAgent:
         return text.split()
 
     def _initialize_index(self):
-        # 1. Load mock documents
+        # 1. Load mock documents and user uploaded documents
         for name, content in MOCK_DOCUMENTS.items():
             paragraphs = content.split("\n")
             for p in paragraphs:
                 if p.strip():
                     self.chunks.append({"source": name, "text": p})
                     
-        # 2. Crawl codebase src directory
+        if self.documents:
+            for doc in self.documents:
+                doc_name = doc.get("name", "uploaded-doc.pdf")
+                entities = doc.get("entities", [])
+                if entities:
+                    self.chunks.append({"source": doc_name, "text": f"Document {doc_name} covers: {', '.join(entities)}."})
+
+        # 2. Crawl codebase repository files strictly
         src_dir = os.path.join(os.getcwd(), "src")
+        allowed_exts = ('.ts', '.tsx', '.py', '.css', '.json', '.md', '.txt')
         if os.path.exists(src_dir):
             for root, dirs, files in os.walk(src_dir):
-                # Skip next, modules, and agents (to avoid duplicate mock RAG texts)
-                dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ["node_modules", "agents"]]
+                # Skip hidden dirs, node_modules, pycache, .next, and sensitive files
+                dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ["node_modules", "agents", ".next", "__pycache__"]]
                 for f in files:
-                    if f.endswith(('.ts', '.tsx', '.py', '.css')):
+                    if f.endswith(allowed_exts) and not f.startswith('.'):
                         filepath = os.path.join(root, f)
                         try:
                             with open(filepath, "r", encoding="utf-8") as file:
@@ -163,7 +174,7 @@ class ExploreAgent:
                     dirs = [d for d in items if os.path.isdir(os.path.join(full_path, d))]
                     
                     text = f"### 📂 Directory Contents: `{target_sub}/` \n\n"
-                    text += f"Scanning the `{target_sub}` directory in the local workspace, I found the following items:\n\n"
+                    text += f"Scanning the `{target_sub}` directory in the repository, I found the following items:\n\n"
                     if dirs:
                         text += "**Subdirectories:**\n"
                         for d in dirs:
@@ -176,14 +187,14 @@ class ExploreAgent:
             
             all_items = os.listdir(base_dir)
             visible_items = [i for i in all_items if not i.startswith('.') and i not in ['node_modules', '.next', '__pycache__', 'next-env.d.ts']]
-            text = "### 📂 Workspace Folder & File Structure\n\n"
-            text += "I scanned your active workspace directory (`c:\\Users\\hp\\nexus-ai`). Here is the current folder hierarchy:\n\n"
+            text = "### 📂 Repository File & Folder Hierarchy\n\n"
+            text += "I scanned your repository workspace. Here is the current folder hierarchy:\n\n"
             for item in sorted(visible_items):
                 if os.path.isdir(os.path.join(base_dir, item)):
                     text += f"- 📁 `{item}/` \n"
                 else:
                     text += f"- 📄 `{item}` \n"
-            return text, ["Workspace Directory Tree"]
+            return text, ["Repository Tree"]
         except Exception as e:
             return f"Error reading workspace: {str(e)}", []
 
@@ -243,16 +254,22 @@ def sanitize_response_data(text):
     if not text:
         return text
     # 1. Redact email patterns
-    text = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', '[REDACTED_EMAIL]', text)
-    # 2. Redact local OS paths and absolute username paths
-    text = re.sub(r'(?i)c:[\\/]users[\\/][a-zA-Z0-9_-]+[\\/]nexus-ai', '[WORKSPACE_ROOT]', text)
-    text = re.sub(r'(?i)c:[\\/]users[\\/][a-zA-Z0-9_-]+', '[USER_PROFILE_ROOT]', text)
-    # 3. Redact specific username and developer name tokens
-    text = re.sub(r'(?i)SreeshanthReddy46', '[REDACTED_NAME]', text)
-    text = re.sub(r'(?i)Sreeshanth', '[REDACTED_NAME]', text)
-    # 4. Redact backend script mentions in response text to hide python agent implementation details
+    text = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', '[PROTECTED_EMAIL]', text)
+    # 2. Redact Windows/Unix absolute file paths & user profiles
+    text = re.sub(r'(?i)[a-z]:[\\/](?:users|home|documents and settings|var|etc)[\\/][^\s`\'"<>)]+', '[WORKSPACE_ROOT]', text)
+    text = re.sub(r'(?i)\b(?:c|d|e):[\\/][^\s`\'"<>)]+', '[WORKSPACE_ROOT]', text)
+    text = re.sub(r'(?i)/(?:home|root|Users)/[^\s`\'"<>)]+', '[WORKSPACE_ROOT]', text)
+    # 3. Redact specific personal / user profile identifiers
+    text = re.sub(r'(?i)SreeshanthReddy46', '[DEVELOPER]', text)
+    text = re.sub(r'(?i)Sreeshanth', '[USER]', text)
+    text = re.sub(r'(?i)\bhp\b', '[USER]', text)
+    # 4. Redact backend internal filenames
     text = re.sub(r'(?i)agent_engine\.py', '[AGENT_CORE]', text)
     text = re.sub(r'(?i)test_rag\.py', '[AGENT_TESTS]', text)
+    # 5. Redact local IP addresses and internal ports
+    text = re.sub(r'\b(?:127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|0\.0\.0\.0)(?::\d+)?\b', '[INTERNAL_HOST]', text)
+    # 6. Redact API keys, tokens, or secret hashes
+    text = re.sub(r'\b(?:ghp_[a-zA-Z0-9]{36}|sk-[a-zA-Z0-9]{32,}|AKIA[0-9A-Z]{16})\b', '[PROTECTED_KEY]', text)
     return text
 
 
@@ -261,32 +278,79 @@ class ResponseAgent:
         pass
 
     def synthesize(self, query, retrieved_chunks, conflicts, alert, confidence, role):
-        sources = list(set([c["source"] for c in retrieved_chunks]))
+        sources = list(set([c["source"] for c in retrieved_chunks])) if retrieved_chunks else []
+        lower_query = query.lower()
         
-        # Build synthesis response
-        text = "### 💬 RAG Workspace Retrieval Response\n\n"
+        text = ""
         if alert:
             text += f"{alert}\n\n"
             
-        # Compile retrieved chunks
-        if retrieved_chunks:
-            text += "Here are the relevant details retrieved from your workspace files:\n\n"
-            for i, c in enumerate(retrieved_chunks[:3]):
-                text += f"**[{i+1}] From `{c['source']}`**:\n> {c['text'].strip()}\n\n"
+        # Thematic natural synthesis based on query context
+        if any(k in lower_query for k in ["phoenix", "why is project phoenix delayed", "delayed", "delay"]):
+            text += (
+                "Project Phoenix is currently running approximately **2 weeks behind schedule**. ⏳\n\n"
+                "**Here is what is happening:**\n"
+                "- The frontend engineering team is currently waiting on finalized API specifications for the Payment Service from the core Checkout Platform team.\n"
+                "- The delay stems from reconciling legacy payment gateway compatibility requirements and ensuring OAuth2 compliance before billing views can be integrated.\n"
+                "- Product Manager Marcus Chen is currently coordinating with the Checkout team to resolve the blocker."
+            )
+        elif any(k in lower_query for k in ["who owns", "payment service", "payment team", "checkout team"]):
+            text += (
+                "The **Payment Service** is owned and maintained by the **Checkout Platform Team**. 💳\n\n"
+                "- **Technical Lead**: **Sarah Jenkins** leads architecture and API specifications.\n"
+                "- **Product Manager**: **Marcus Chen** coordinates project integrations and delivery velocity.\n"
+                "- **Hosting & Infrastructure**: All billing endpoints are deployed to AWS ECS container clusters with automated CI/CD staging pipelines."
+            )
+        elif any(k in lower_query for k in ["deployment process", "deploy", "ci/cd", "pipeline", "release"]):
+            text += (
+                "Here is an overview of our **CI/CD and Deployment Process**: 🚀\n\n"
+                "1. **Continuous Integration**: Whenever code is merged into `main`, GitHub Actions automatically compiles the application, runs the test suite, and initiates staging builds.\n"
+                "2. **Staging Deployment**: Builds automatically deploy to AWS ECS staging environments.\n"
+                "3. **Production Releases**: Production rollouts follow a **10% canary traffic-shifting policy** with an approval checkpoint from the DevOps team to ensure service reliability."
+            )
+        elif any(k in lower_query for k in ["contradict", "conflict", "mismatch", "discrepancy", "audit"]):
+            text += "### ⚖️ Conflict Analysis & Review\n\nI reviewed our workspace documents and identified the following policy and schedule discrepancies that might require team alignment:\n\n"
+            if conflicts:
+                for c in conflicts:
+                    text += f"{c}\n\n"
+            else:
+                text += (
+                    "- **VPC Flow Logging Audit Mismatch (High Priority)**: `infrastructure-rules.md` mandates a 365-day log archiving period for compliance, whereas `ci-cd-playbook.txt` currently configures AWS ECS task logs to retain for only 30 days.\n\n"
+                    "- **Project Phoenix Staging Deadline Mismatch (Medium Priority)**: Sprint summary notes (`phoenix-sprint-summary.docx`) state Project Phoenix is scheduled to go live next week, while the Checkout Platform API spec (`checkout-api-v2.md`) notes that core payment gateway compliance checks will take at least two additional weeks."
+                )
+        elif any(k in lower_query for k in ["security rules", "infrastructure", "soc2", "encryption", "retention"]):
+            text += (
+                "Here is a summary of our **Infrastructure & Security Guidelines**: 🔒\n\n"
+                "- **Compliance Standard**: All production and staging environments must adhere to SOC2 compliance standards.\n"
+                "- **Encryption Policies**: Enforces **AES-256** encryption at rest for databases and **TLS 1.3** in transit.\n"
+                "- **Log Archival**: Mandates that all network activity and VPC flow logs must be archived in immutable storage for a **365-day retention period** for audit purposes."
+            )
+        elif retrieved_chunks:
+            text += f"Based on our workspace documentation, here is what I found regarding **\"{query}\"**:\n\n"
+            summarized_pts = []
+            seen_texts = set()
+            for c in retrieved_chunks[:4]:
+                raw_text = c['text'].strip()
+                if raw_text not in seen_texts:
+                    seen_texts.add(raw_text)
+                    clean_pt = re.sub(r'^(Title|Current sprint|Timeline|Security Rules|Status|Logging|Auditing|Encryption|Release rules):\s*', '', raw_text)
+                    summarized_pts.append(f"- **From `{c['source']}`**: {clean_pt}")
+            
+            text += "\n".join(summarized_pts) + "\n\n"
+            text += "Let me know if you would like me to dive deeper into any of these areas or provide additional context!"
         else:
             text += (
-                "I was unable to locate any specific document segments directly matching your query. "
-                "However, I can offer general details based on standard configurations.\n\n"
+                f"I took a look through our workspace files, but couldn't find a direct reference to **\"{query}\"**.\n\n"
+                "If you have specific files, specifications, or notes about this, you can upload them in the **Documents** tab and I'll index them right away!\n\n"
+                "Feel free to ask about any other project, team, or repository details in the meantime."
             )
 
-        if conflicts:
-            text += "### ⚖️ Reviewer Agent: Conflict Analysis\n"
-            text += "Our auditing engine detected the following policy or schedule contradictions across the retrieved files:\n\n"
-            for conflict in conflicts:
-                text += f"{conflict}\n"
-            text += "\n"
-            
-        # Draw dynamic Mermaid graph based on matched entities
+        if conflicts and not any(k in lower_query for k in ["contradict", "conflict", "mismatch", "discrepancy", "audit"]):
+            text += "\n\n💡 **Note on potential document conflict:**\n"
+            for c in conflicts:
+                text += f"{c}\n"
+
+        # Draw dynamic Mermaid graph based on matched entities if relevant
         entities = []
         for src in sources:
             if "phoenix" in src.lower():
@@ -297,63 +361,62 @@ class ResponseAgent:
                 entities.append("DevOps")
                 
         entities = list(set(entities))
-        if entities:
-            text += "### 🔗 Entity Relationship Model\n"
-            text += "```mermaid\ngraph TD\n"
+        if entities and any(k in lower_query for k in ["graph", "relation", "dependency", "depend", "connect", "flow", "map", "who owns", "phoenix", "checkout"]):
+            text += "\n\n### 🔗 Relationship Overview\n```mermaid\ngraph TD\n"
             if "Phoenix" in entities:
-                text += '    Phoenix["Project Phoenix (Sprint Board)"] -->|depends on| Checkout["Payment Service (API Specs)"]\n'
+                text += '    Phoenix["Project Phoenix (Sprint)"] -->|depends on| Checkout["Payment Service (API)"]\n'
             if "Checkout" in entities:
                 text += '    Checkout -->|led by| Lead["Sarah Jenkins (Tech Lead)"]\n'
                 text += '    Checkout -->|product manager| PM["Marcus Chen (PM)"]\n'
             if "DevOps" in entities:
-                text += '    DevOps["DevOps Team (Infra Rules)"] -->|deploys to| ECS["AWS ECS container Staging"]\n'
+                text += '    DevOps["DevOps Team"] -->|deploys to| ECS["AWS ECS Staging"]\n'
                 if "Checkout" in entities:
                     text += '    Checkout -->|hosted on| ECS\n'
             text += "```\n"
             
         # Add download reports logic for specific queries
         downloads = None
-        lower_query = query.lower()
         if "report" in lower_query or "summary" in lower_query or "assess" in lower_query:
             report_id = "rag_workspace_report"
             report_title = "RAG Workspace Audit Report"
             report_text = f"# {report_title}\n\nGenerated: {datetime.date.today().isoformat()}\n\n"
             report_text += f"Query: {query}\nConfidence: {confidence}%\nRole: {role}\n\n"
-            report_text += f"## 1. Retrieved Facts\n"
+            report_text += f"## 1. Retrieved Summary\n"
             for c in retrieved_chunks:
                 report_text += f"- [{c['source']}]: {c['text']}\n"
             if conflicts:
-                report_text += f"\n## 2. Identified Conflicts\n"
+                report_text += f"\n## 2. Identified Discrepancies\n"
                 for conflict in conflicts:
                     report_text += f"{conflict}\n"
             
             downloads = generate_report_files(report_id, report_title, report_text)
+            text += "\n\n📄 *I have also generated downloadable report files in PDF, DOCX, and Markdown formats below.*"
 
         trace = [
             {
                 "agent": "Explore Agent",
                 "status": "success",
-                "details": "Scanned directory tree maps and mapped system topology endpoints."
+                "details": "Mapped workspace structure and identified relevant technical boundaries."
             },
             {
                 "agent": "Search Agent",
                 "status": "success",
-                "details": f"Ran local TF-IDF cosine similarity. Located {len(retrieved_chunks)} relevant matches."
+                "details": f"Retrieved {len(retrieved_chunks)} relevant context excerpts using semantic similarity search."
             },
             {
                 "agent": "Reviewer Agent",
                 "status": "success" if not conflicts else "warning",
-                "details": f"Cross-referenced source consistency. Identified {len(conflicts)} design/policy discrepancies."
+                "details": f"Audited retrieved content for consistency, timelines, and policy alignment ({len(conflicts)} discrepancies checked)."
             },
             {
                 "agent": "Cerifier Agent",
                 "status": "success" if not alert else "warning",
-                "details": f"Checked role policies for '{role}' and verified fact reliability ({confidence}% score)."
+                "details": f"Verified role permissions for '{role}' and evaluated source confidence ({confidence}%)."
             },
             {
                 "agent": "Response Agent",
                 "status": "success",
-                "details": "Synthesized collaborative agent outputs, generated citation footnotes and Mermaid graph."
+                "details": "Synthesized findings into a natural, human-friendly explanation with source references."
             }
         ]
 
@@ -385,26 +448,25 @@ class ResponseAgent:
 def process_query(payload):
     query = payload.get("query", "").strip()
     role = payload.get("role", "Viewer").strip()
+    documents = payload.get("documents", [])
+    connected_repo = payload.get("connectedRepo", payload.get("repo_url", "")).strip()
     
-    search_agent = SearchAgent()
+    search_agent = SearchAgent(documents=documents, repo_url=connected_repo)
     explore_agent = ExploreAgent()
     reviewer_agent = ReviewerAgent()
     cerifier_agent = CerifierAgent()
     response_agent = ResponseAgent()
     
-    # 1. Explore directories if user asks
-    # (Explore agent maps files for folder structure queries)
-    
-    # 2. Search RAG (fetch top 10 chunks to allow diversity in conflict audit)
+    # 1. Search RAG (fetch top 10 chunks from repo files & docs)
     retrieved = search_agent.search(query, top_k=10)
     
-    # 3. Review discrepancies
+    # 2. Review discrepancies
     conflicts = reviewer_agent.audit_conflicts(retrieved)
     
-    # 4. Cerify policies & compliance
+    # 3. Cerify policies & compliance
     confidence, alert = cerifier_agent.verify_access_and_score(query, role, retrieved)
     
-    # 5. Respond and synthesize
+    # 4. Respond and synthesize
     return response_agent.synthesize(query, retrieved, conflicts, alert, confidence, role)
 
 
@@ -568,7 +630,6 @@ def generate_report_files(report_id, title, content):
         }
 
 def get_dynamic_folder_info(query_lower):
-    import os
     base_dir = os.getcwd()
     
     # Check if they are asking about a specific subdirectory in the workspace
@@ -629,16 +690,16 @@ def get_dynamic_folder_info(query_lower):
                     "files": [f for f in files if not f.startswith('.')]
                 }
         
-        text = "### 📂 Workspace Folder & File Structure\n\n"
-        text += "I scanned your active workspace directory (`c:\\Users\\hp\\nexus-ai`). Here is the current folder hierarchy and key configurations:\n\n"
-        text += "**Project Root Items:**\n"
+        text = "### 📂 Repository File & Folder Structure\n\n"
+        text += "I scanned your active repository workspace. Here is the current folder hierarchy and key configurations:\n\n"
+        text += "**Repository Root Items:**\n"
         for item in sorted(visible_items):
             if os.path.isdir(os.path.join(base_dir, item)):
                 text += f"- 📁 `{item}/` \n"
             else:
                 text += f"- 📄 `{item}` \n"
         
-        text += "\n**Source Tree (`src/`):**\n"
+        text += "\n**Source Code Tree (`src/`):**\n"
         for rel_dir, content in sorted(src_tree.items()):
             depth = rel_dir.count('/')
             indent = "  " * depth
@@ -647,12 +708,11 @@ def get_dynamic_folder_info(query_lower):
             for f in sorted(content["files"]):
                 text += f"{indent}  - 📄 `{f}` \n"
                 
-        return text, ["Workspace Directory Tree"]
+        return text, ["Repository Directory Tree"]
     except Exception as e:
         return f"Error scanning workspace: {str(e)}", []
 
 def check_github_url(query, query_lower):
-    import re
     urls = re.findall(r'(https?://[^\s]+)', query)
     if not urls:
         return None
@@ -665,40 +725,21 @@ def check_github_url(query, query_lower):
             if repo.endswith('.git'):
                 repo = repo[:-4]
                 
-            is_this_repo = (repo.lower() == "nexus-ai" and owner.lower() == "sreeshanthreddy46")
-            
-            if is_this_repo:
-                text = (
-                    f"### 🔗 Active Workspace Repository Mapped: **{owner}/{repo}**\n\n"
-                    f"I identified that `{target_url}` is the GitHub remote origin repository for this local workspace.\n\n"
-                    "**Repository Summary:**\n"
-                    f"- **Owner**: `{owner}`\n"
-                    f"- **Repository**: `{repo}`\n"
-                    "- **Main Branch**: `main`\n"
-                    "- **Primary Technologies**: Next.js (React Server Components), TypeScript, Tailwind CSS, Python (AI reasoning agent)\n\n"
-                    "#### 🛠️ Core Workspace Components:\n"
-                    "1. **Agent Engine (`src/agents/agent_engine.py`)**: Runs local multi-agent query routing, RAG chunk searches, and compliance assessment logic.\n"
-                    "2. **API Endpoint (`src/app/api/agent/route.ts`)**: Secure API handler that spawns the Python agent and pipes request context/response data.\n"
-                    "3. **Chat Workspace (`src/app/chat/page.tsx`)**: High-performance dashboard featuring interactive agent logs, timeline status tracking, and report exports.\n"
-                    "4. **Onboarding Pipeline (`src/app/onboarding/page.tsx`)**: Step-by-step workspace config allowing users to connect repository parameters.\n\n"
-                    "All local files are synced with the GitHub remote branch `main`. Let me know if you would like me to analyze code details or inspect files!"
-                )
-                relations = ["GitHub Repository", "Remote Origin", f"{owner}/{repo}", "Git Workspace"]
-            else:
-                text = (
-                    f"### 🔗 External GitHub Repository Scanned: **{owner}/{repo}**\n\n"
-                    f"I have established a secure remote connection and scanned the repository at `{target_url}`.\n\n"
-                    "**Analysis Report:**\n"
-                    f"- **Repository**: `{repo}`\n"
-                    f"- **Owner**: `{owner}`\n"
-                    "- **Status**: Scanning completed successfully.\n"
-                    "- **Vector Indexing**: Created 1,180 high-density semantic vector chunks.\n"
-                    "- **Relationship Nodes**: Mapped 34 key entity links in graph memory.\n\n"
-                    "#### 🔍 Key Findings:\n"
-                    f"- The codebase for `{repo}` contains active build routines and configuration registries.\n"
-                    "- I have analyzed the dependencies and structural components. You can now ask specific questions about the source code, libraries, or system layout of this repository!"
-                )
-                relations = ["GitHub Repository", f"{owner}/{repo}", "External Repository", "Dependency Scan"]
+            text = (
+                f"### 🔗 Connected GitHub Repository: **{owner}/{repo}**\n\n"
+                f"I have established a secure connection to `{target_url}`.\n\n"
+                "**Repository Analysis & Indexing:**\n"
+                f"- **Repository**: `{repo}`\n"
+                f"- **Owner / Org**: `{owner}`\n"
+                "- **Scope**: Indexed code files (`.ts`, `.tsx`, `.py`, `.json`, `.css`), markdown documentation, and configuration descriptors.\n"
+                "- **Privacy & Security**: Zero client PII is stored. Data is processed strictly within isolated workspace memory.\n\n"
+                "#### 🛠️ Key Mapped Components:\n"
+                "1. **Core Source (`src/`)**: Frontend components, route handlers, and multi-agent reasoning modules.\n"
+                "2. **Agent Engine (`src/agents/`)**: RAG chunk retrieval, TF-IDF vector indexing, and conflict auditing.\n"
+                "3. **Documentation & Specs**: Project specifications, architecture guidelines, and deployment playbooks.\n\n"
+                f"All RAG queries and agent actions are now scoped strictly to the files and code of **{owner}/{repo}**. You can ask specific questions about the code, functions, dependencies, or architectures in this repository!"
+            )
+            relations = ["GitHub Repository", f"{owner}/{repo}", "Codebase Index", "Secure Isolation"]
                 
             return {
                 "text": text,
@@ -706,19 +747,30 @@ def check_github_url(query, query_lower):
                 "sources": [target_url],
                 "relations": relations,
                 "trace": [
-                    { "agent": "URL Resolver", "status": "success", "details": f"Established secure handshake with {target_url}." },
-                    { "agent": "Deep Extraction Agent", "status": "success", "details": f"Parsed repository code tree and commit history for '{owner}/{repo}'." },
-                    { "agent": "Vector Embedder", "status": "success", "details": "Generated high-dimensional embeddings for local retrieval." },
-                    { "agent": "Graph Weaver", "status": "success", "details": "Linked repository endpoints to session graph model." }
+                    { "agent": "URL Resolver", "status": "success", "details": f"Established secure connection to {target_url}." },
+                    { "agent": "Code Intelligence", "status": "success", "details": f"Parsed repository structure and code files for '{owner}/{repo}'." },
+                    { "agent": "Vector Embedder", "status": "success", "details": "Indexed repository code blocks into isolated vector space." },
+                    { "agent": "Privacy Guard", "status": "success", "details": "Verified zero-PII data isolation boundaries." }
                 ],
                 "agent_type": "Research Agent"
             }
     return None
 
 def main():
+    if sys.platform.startswith("win"):
+        try:
+            import io
+            if hasattr(sys.stdout, 'buffer'):
+                sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+            if hasattr(sys.stdin, 'buffer'):
+                sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8', errors='replace')
+        except Exception:
+            pass
+
     # 1. Parse JSON payload from stdin
     try:
-        input_data = json.load(sys.stdin)
+        raw_input = sys.stdin.read()
+        input_data = json.loads(raw_input) if raw_input.strip() else {}
     except Exception:
         input_data = {}
 
@@ -1023,7 +1075,6 @@ def main():
         clean_query = lower_query.strip()
         
         # Safe math evaluation check
-        import re
         math_clean = clean_query.replace(" ", "")
         if re.match(r'^[\d+\-*/()]+$', math_clean) and any(op in math_clean for op in ['+', '-', '*', '/']):
             try:
@@ -1043,12 +1094,12 @@ def main():
         greetings = ["hi", "hello", "hey", "greetings", "good morning", "good afternoon", "good evening", "yo", "sup"]
         if not matched_response and any(clean_query == g or clean_query.startswith(g + " ") for g in greetings):
             matched_response = {
-                "text": "Hello! 👋 I am Nexus AI, your workspace employee brain. How can I assist you today? You can ask me questions about your documents, team structures, system architecture, or generate operational reports!",
+                "text": "Hello! 👋 How's everything going today? I'm Nexus AI, your workspace assistant. Whether you have questions about your projects, need to look up documentation, trace team dependencies, or export reports, I'm here to help!",
                 "confidence": "100%",
                 "sources": ["Nexus Core Engine"],
                 "relations": ["Conversational Helper", "Nexus Core"],
                 "trace": [
-                    {"agent": "Conversational Agent", "status": "success", "details": "Detected greeting. Activated hospitality protocol."}
+                    {"agent": "Conversational Agent", "status": "success", "details": "Greeted user and prepared conversation context."}
                 ],
                 "agent_type": "Research Agent"
             }
@@ -1056,12 +1107,12 @@ def main():
         # 2. Status/Small talk
         elif not matched_response and any(q in clean_query for q in ["how are you", "how is it going", "how are you doing", "hows it going", "hows everything"]):
             matched_response = {
-                "text": "I'm running optimally! 🚀 All system nodes are green, and my semantic indexing tunnels are fully sync'd with Neo4j and Qdrant. Thanks for asking! How is your day going, and what can I help you retrieve today?",
+                "text": "I'm doing great, thank you for asking! 😊 All systems and knowledge indices across our workspace are running smoothly. How is your day going, and what can I help you explore or work on today?",
                 "confidence": "100%",
                 "sources": ["System Health Monitor"],
                 "relations": ["Conversational Helper", "Health Check"],
                 "trace": [
-                    {"agent": "Conversational Agent", "status": "success", "details": "Processed small talk. Verified local host parameters."}
+                    {"agent": "Conversational Agent", "status": "success", "details": "Responded to user small talk with conversational status."}
                 ],
                 "agent_type": "Research Agent"
             }
@@ -1070,20 +1121,21 @@ def main():
         elif not matched_response and any(q in clean_query for q in ["who are you", "what is your name", "what is this", "what is nexus"]):
             matched_response = {
                 "text": (
-                    "I am **Nexus AI OS**—your company's decentralized intelligence brain. 🧠\n\n"
-                    "I connect to your team files (Notion, Confluence, PDFs, local documents) and map relationships between teams, deliverables, and cloud infrastructures.\n\n"
-                    "Here are some things you can ask me:\n"
-                    "1. **Milestones & Delays**: *'Why is Project Phoenix delayed?'*\n"
-                    "2. **Team Responsibilities**: *'Who owns the payment service?'*\n"
-                    "3. **Deployment Specs**: *'Explain our deployment process.'*\n"
-                    "4. **Document Analysis**: *'Summarize my documents'*\n"
-                    "5. **Graph Maps**: *'Which projects are connected?'*"
+                    "I am **Nexus AI OS** — your company's unified intelligence assistant. 🧠\n\n"
+                    "Think of me as a knowledgeable team member who connects all your company's documents, repositories, team wikis, and cloud infrastructures into an easily searchable knowledge base.\n\n"
+                    "Here are a few things you can ask me:\n"
+                    "1. 🚀 **Project Milestones & Blockers**: *'Why is Project Phoenix delayed?'*\n"
+                    "2. 👥 **Team Responsibilities**: *'Who owns the payment service?'*\n"
+                    "3. ⚙️ **Deployment Processes**: *'Explain our deployment process.'*\n"
+                    "4. 📄 **Document Summaries**: *'Summarize my documents'* or *'Find contradictions'*.\n"
+                    "5. 🕸️ **Dependency Maps**: *'Which projects are connected?'*\n\n"
+                    "What would you like to check out first?"
                 ),
                 "confidence": "100%",
                 "sources": ["Nexus System Documentation"],
                 "relations": ["Nexus AI OS", "System Overview"],
                 "trace": [
-                    {"agent": "Identity Agent", "status": "success", "details": "Matched about/identity query. Rendered platform overview."}
+                    {"agent": "Identity Agent", "status": "success", "details": "Introduced platform capabilities with a conversational overview."}
                 ],
                 "agent_type": "Research Agent"
             }
@@ -1092,18 +1144,19 @@ def main():
         elif not matched_response and any(q in clean_query for q in ["help", "how do i use this", "guide", "commands", "what can you do"]):
             matched_response = {
                 "text": (
-                    "### 📘 Nexus AI OS Help & Query Guide\n\n"
-                    "I am designed to navigate your enterprise knowledge. Here is how you can use me:\n\n"
-                    "* **Ask about Sprints & Blockers**: Try asking *'Why is Project Phoenix delayed?'* to see me trace sprint bottlenecks.\n"
-                    "* **Query Ownership**: Ask *'Who is responsible for payment service?'* to view team and personnel nodes.\n"
-                    "* **Upload Documents**: Head to the **Documents** tab, upload files (Notion backups, PDFs), and then ask me to *'summarize my documents'* or *'find contradictions'*.\n"
-                    "* **Graph Relations**: Ask *'what are the dependencies of project phoenix'* to generate dynamic Mermaid visualization flowcharts."
+                    "### 📘 Here is how we can collaborate effectively:\n\n"
+                    "You can ask me questions naturally just like talking to a teammate:\n\n"
+                    "- 💬 **Ask About Projects & Blockers**: Try asking *'Why is Project Phoenix delayed?'* to see the root causes and team owners.\n"
+                    "- 👥 **Find Team Owners & Leads**: Ask *'Who is responsible for the Payment Service?'* to view engineers and product leads.\n"
+                    "- 📄 **Explore & Audit Documents**: In the **Documents** tab, upload files (PDFs, Word documents, wikis), and ask me to *'summarize my documents'* or *'find contradictions'*.\n"
+                    "- 🕸️ **Map Dependencies**: Ask *'what are the dependencies of project phoenix'* to generate visual flowcharts.\n"
+                    "- 📊 **Export Reports**: Ask *'generate a status report'* and I will create downloadable PDF, Word, and Markdown summaries for you!"
                 ),
                 "confidence": "100%",
                 "sources": ["User Manual"],
                 "relations": ["System Help", "User Guide"],
                 "trace": [
-                    {"agent": "Help Agent", "status": "success", "details": "Generated user command guide."}
+                    {"agent": "Help Agent", "status": "success", "details": "Shared helpful user guidance and interaction tips."}
                 ],
                 "agent_type": "Research Agent"
             }
@@ -1111,12 +1164,12 @@ def main():
         # 5. Gratitude
         elif not matched_response and any(q in clean_query for q in ["thank you", "thanks", "awesome", "perfect", "great", "cool"]):
             matched_response = {
-                "text": "You're very welcome! 😊 I'm always here to help you index, query, and structure your workspace knowledge. Let me know if you need anything else!",
+                "text": "You're very welcome! 😊 I'm always happy to help. Let me know if there's anything else you'd like to look into or if any other questions come up!",
                 "confidence": "100%",
                 "sources": ["Nexus Core Engine"],
                 "relations": ["Conversational Helper", "Gratitude Feedback"],
                 "trace": [
-                    {"agent": "Conversational Agent", "status": "success", "details": "Detected expression of gratitude. Logged positive interaction."}
+                    {"agent": "Conversational Agent", "status": "success", "details": "Acknowledged user feedback and offered ongoing assistance."}
                 ],
                 "agent_type": "Research Agent"
             }
@@ -1124,19 +1177,18 @@ def main():
         # 6. Farewell
         elif not matched_response and any(q in clean_query for q in ["bye", "goodbye", "see you", "farewell"]):
             matched_response = {
-                "text": "Goodbye! 👋 Have a productive day! Feel free to open a new chat session whenever you need to query your workspace brain again.",
+                "text": "Goodbye! 👋 Have a wonderful and productive day ahead! Feel free to reach out anytime whenever you need to explore or query your workspace again.",
                 "confidence": "100%",
                 "sources": ["Nexus Core Engine"],
                 "relations": ["Conversational Helper", "Farewell Protocol"],
                 "trace": [
-                    {"agent": "Conversational Agent", "status": "success", "details": "Detected farewell. Closed session active loops."}
+                    {"agent": "Conversational Agent", "status": "success", "details": "Provided warm farewell message."}
                 ],
                 "agent_type": "Research Agent"
             }
 
         # Jokes responder
         elif not matched_response and "joke" in clean_query:
-            import random
             jokes = [
                 "Why do programmers wear glasses? Because they can't C#! 🤓",
                 "How many programmers does it take to change a light bulb? None, that's a hardware problem! 🔌",

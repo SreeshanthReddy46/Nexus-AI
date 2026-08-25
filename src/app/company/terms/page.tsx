@@ -10,10 +10,6 @@ export default function TermsPage() {
       {/* Header Banner */}
       <section className="relative overflow-hidden bg-slate-50 border-b border-slate-200 py-16 md:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-800 border border-slate-200 mb-4">
-            <FileText className="h-3.5 w-3.5 text-black" />
-            Terms & Boundaries
-          </span>
           <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
             Terms of Service
           </h1>

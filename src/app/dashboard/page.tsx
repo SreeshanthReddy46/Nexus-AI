@@ -14,6 +14,7 @@ import {
   Plus,
   RefreshCw
 } from "lucide-react";
+import { decryptData } from "@/utils/crypto";
 
 // Mock data for dashboard
 const INITIAL_STATS = {
@@ -93,7 +94,8 @@ export default function Dashboard() {
     const savedDocs = localStorage.getItem("nexus_docs");
     if (savedDocs) {
       try {
-        const docsArray = JSON.parse(savedDocs);
+        const decrypted = decryptData(savedDocs) || savedDocs;
+        const docsArray = JSON.parse(decrypted);
         const docsCount = 5420 + docsArray.length;
         const nodesCount = 45221 + (docsArray.length * 8); // approximate nodes extracted
         setTimeout(() => {
@@ -155,21 +157,7 @@ export default function Dashboard() {
       {/* Header bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
         <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Control Center</h1>
-            <div className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${
-              currentPlan === "pro" || currentPlan === "business" 
-                ? "bg-black text-white" 
-                : currentPlan === "starter" 
-                  ? "bg-amber-100 text-amber-700" 
-                  : "bg-slate-100 text-slate-500"
-            }`}>
-              {currentPlan === "free" && <RefreshCw className="h-3 w-3" />}
-              {currentPlan === "starter" && <TrendingUp className="h-3 w-3" />}
-              {(currentPlan === "pro" || currentPlan === "business") && <Activity className="h-3 w-3 text-emerald-400" />}
-              {currentPlan} Plan
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 mb-1">Control Center</h1>
           <p className="text-slate-500 text-sm">Real-time status of company knowledge integrations and AI activity.</p>
         </div>
         <div className="flex items-center gap-3">

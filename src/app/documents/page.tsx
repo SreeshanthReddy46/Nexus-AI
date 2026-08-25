@@ -288,18 +288,7 @@ export default function Documents() {
       {/* Page Header */}
       <div className="border-b border-slate-100 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Document Center</h1>
-            <div className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${
-              currentPlan === "pro" || currentPlan === "business" 
-                ? "bg-black text-white" 
-                : currentPlan === "starter" 
-                  ? "bg-amber-100 text-amber-700" 
-                  : "bg-slate-100 text-slate-500"
-            }`}>
-              {currentPlan} Plan
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 mb-1">Document Center</h1>
           <p className="text-slate-500 text-sm">
             Upload and index organization materials. These files feed directly into the AI agent workspace memory.
           </p>
